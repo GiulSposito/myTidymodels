@@ -24,7 +24,7 @@ In this notebook we won't use the [`{workflow}`](https://workflows.tidymodels.or
 
 # Regression Example
 
-# 1. training and testing datasets
+# (1) training and testing datasets
 
 ```{r regSplit, message=FALSE, warning=FALSE}
 # tidymodel package to split datasets (tr/ts, CV,...)
@@ -41,7 +41,7 @@ trn_cars <- training(cars_split)
 tst_cars <- testing(cars_split)
 ```
 
-# 2. Preprocessing and Feature Eng
+# (2) Preprocessing and Feature Eng
 
 ```{r regRecp, message=FALSE, warning=FALSE}
 # tidymodel package to specify a sequence of transformation steps
@@ -76,7 +76,7 @@ head(cars_testing)
 ```
 
 
-# 3. Training a model
+# (3) Training a model
 
 ```{r regTrain, message=FALSE, warning=FALSE}
 # tidymodel package the uniforms the machine learnings algorithm interface
@@ -97,7 +97,7 @@ summary(cars_lm$fit)
 
 ```
 
-# 4. Prediction
+# (4) Prediction
 
 ```{r regPred, message=FALSE, warning=FALSE}
 
@@ -106,7 +106,7 @@ head(y_hat)
 
 ```
 
-# 5. Evaluate Model Performance
+# (5) Evaluate Model Performance
 
 ```{r, message=FALSE, warning=FALSE}
 # tidymodel package for measuring model performances

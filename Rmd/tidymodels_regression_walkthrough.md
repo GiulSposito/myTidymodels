@@ -24,8 +24,8 @@ the building blocks of [`{tidymodels}`](https://www.tidymodels.org/).
 Regression Example
 ==================
 
-1. training and testing datasets
-================================
+(1) training and testing datasets
+=================================
 
 ``` r
 # tidymodel package to split datasets (tr/ts, CV,...)
@@ -47,8 +47,8 @@ trn_cars <- training(cars_split)
 tst_cars <- testing(cars_split)
 ```
 
-2. Preprocessing and Feature Eng
-================================
+(2) Preprocessing and Feature Eng
+=================================
 
 ``` r
 # tidymodel package to specify a sequence of transformation steps
@@ -92,14 +92,14 @@ head(cars_training)
 ```
 
     ## # A tibble: 6 x 10
-    ##      disp     hp   drat      wt   qsec     vs     am   gear   carb   mpg
-    ##     <dbl>  <dbl>  <dbl>   <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl> <dbl>
-    ## 1 -0.581  -0.552  0.532 -0.613  -0.831 -0.900  1.26   0.438  0.874  21  
-    ## 2  0.169  -0.552 -0.901 -0.0560  1.08   1.06  -0.758 -0.876 -1.30   21.4
-    ## 3 -0.0837 -0.630 -1.46   0.173   1.57   1.06  -0.758 -0.876 -1.30   18.1
-    ## 4  0.949   1.55  -0.673  0.276  -1.23  -0.900 -0.758 -0.876  0.874  14.3
-    ## 5 -0.683  -1.30   0.165 -0.0794  1.43   1.06  -0.758  0.438 -0.573  24.4
-    ## 6 -0.523  -0.350  0.567  0.154   0.346  1.06  -0.758  0.438  0.874  19.2
+    ##      disp     hp   drat       wt   qsec     vs     am   gear   carb   mpg
+    ##     <dbl>  <dbl>  <dbl>    <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl> <dbl>
+    ## 1 -0.564  -0.515  0.504 -0.548   -0.730 -0.900  1.06   0.267  0.672  21  
+    ## 2 -0.956  -0.747  0.414 -0.826    0.396  1.06   1.06   0.267 -1.06   22.8
+    ## 3  0.174  -0.515 -0.968  0.00224  0.831  1.06  -0.900 -1.02  -1.06   21.4
+    ## 4  0.942   0.374 -0.842  0.210   -0.437 -0.900 -0.900 -1.02  -0.480  18.7
+    ## 5 -0.0744 -0.583 -1.54   0.229    1.24   1.06  -0.900 -1.02  -1.06   18.1
+    ## 6  0.942   1.33  -0.735  0.331   -1.05  -0.900 -0.900 -1.02   0.672  14.3
 
 ``` r
 # we can apply the transformation on the test set using `bake(recipe, new_data)`
@@ -108,17 +108,17 @@ head(cars_testing)
 ```
 
     ## # A tibble: 6 x 10
-    ##     disp     hp   drat     wt   qsec     vs     am   gear   carb   mpg
-    ##    <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl>  <dbl> <dbl>
-    ## 1 -0.581 -0.552  0.532 -0.374 -0.473 -0.900  1.26   0.438  0.874  21  
-    ## 2 -0.979 -0.817  0.445 -0.893  0.545  1.06   1.26   0.438 -1.30   22.8
-    ## 3  0.949  0.460 -0.778  0.154 -0.473 -0.900 -0.758 -0.876 -0.573  18.7
-    ## 4 -0.728 -0.786  0.567 -0.117  3.29   1.06  -0.758  0.438 -0.573  22.8
-    ## 5  0.305  0.538 -0.918  0.426 -0.102 -0.900 -0.758 -0.876  0.151  17.3
-    ## 6 -1.26  -1.25   1.09  -1.35   1.37   1.06   1.26   0.438 -1.30   33.9
+    ##     disp     hp   drat     wt    qsec     vs     am   gear    carb   mpg
+    ##    <dbl>  <dbl>  <dbl>  <dbl>   <dbl>  <dbl>  <dbl>  <dbl>   <dbl> <dbl>
+    ## 1 -0.564 -0.515  0.504 -0.312 -0.437  -0.900  1.06   0.267  0.672   21  
+    ## 2 -0.507 -0.337  0.540  0.210  0.234   1.06  -0.900  0.267  0.672   19.2
+    ## 3  0.308  0.443 -0.986  0.479 -0.133  -0.900 -0.900 -1.02   0.0960  17.3
+    ## 4  0.308  0.443 -0.986  0.525  0.0768 -0.900 -0.900 -1.02   0.0960  15.2
+    ## 5 -1.18  -1.12   0.827 -0.937  0.847   1.06   1.06   0.267 -1.06    32.4
+    ## 6 -0.864 -0.692  0.145 -0.692  1.13    1.06  -0.900 -1.02  -1.06    21.5
 
-3. Training a model
-===================
+(3) Training a model
+====================
 
 ``` r
 # tidymodel package the uniforms the machine learnings algorithm interface
@@ -141,9 +141,9 @@ cars_lm
     ## 
     ## Coefficients:
     ## (Intercept)         disp           hp         drat           wt         qsec  
-    ##     19.8417       0.6019      -2.4685       0.5375      -1.8237      -0.4001  
+    ##    20.31250      1.98525     -1.81620      0.43214     -4.76702      1.53861  
     ##          vs           am         gear         carb  
-    ##      0.5715       0.9899       0.6651      -1.2276
+    ##     0.03287      0.72571      0.45356      0.02379
 
 ``` r
 # getting the real model (lm) inside parsnip
@@ -156,29 +156,29 @@ summary(cars_lm$fit)
     ## 
     ## Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -3.2804 -1.4086 -0.1161  1.0699  4.6338 
+    ## -3.1402 -1.7124 -0.1737  1.2988  4.8865 
     ## 
     ## Coefficients:
     ##             Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)  19.8417     0.5308  37.381 1.99e-15 ***
-    ## disp          0.6019     2.5471   0.236    0.817    
-    ## hp           -2.4685     1.9302  -1.279    0.222    
-    ## drat          0.5375     0.9518   0.565    0.581    
-    ## wt           -1.8237     2.8138  -0.648    0.527    
-    ## qsec         -0.4001     2.5256  -0.158    0.876    
-    ## vs            0.5715     1.5026   0.380    0.709    
-    ## am            0.9899     1.1663   0.849    0.410    
-    ## gear          0.6651     1.2200   0.545    0.594    
-    ## carb         -1.2276     1.3535  -0.907    0.380    
+    ## (Intercept) 20.31250    0.57565  35.286 4.42e-15 ***
+    ## disp         1.98525    2.89407   0.686   0.5039    
+    ## hp          -1.81620    2.09170  -0.868   0.3999    
+    ## drat         0.43214    1.13669   0.380   0.7095    
+    ## wt          -4.76702    2.26835  -2.102   0.0542 .  
+    ## qsec         1.53861    1.66829   0.922   0.3720    
+    ## vs           0.03287    1.30186   0.025   0.9802    
+    ## am           0.72571    1.36347   0.532   0.6029    
+    ## gear         0.45356    1.32902   0.341   0.7380    
+    ## carb         0.02379    1.62035   0.015   0.9885    
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 2.6 on 14 degrees of freedom
-    ## Multiple R-squared:  0.8898, Adjusted R-squared:  0.8189 
-    ## F-statistic: 12.56 on 9 and 14 DF,  p-value: 2.817e-05
+    ## Residual standard error: 2.82 on 14 degrees of freedom
+    ## Multiple R-squared:  0.8721, Adjusted R-squared:   0.79 
+    ## F-statistic: 10.61 on 9 and 14 DF,  p-value: 7.493e-05
 
-4. Prediction
-=============
+(4) Prediction
+==============
 
 ``` r
 y_hat <- predict(cars_lm, cars_testing)
@@ -189,14 +189,14 @@ head(y_hat)
     ##   .pred
     ##   <dbl>
     ## 1  22.0
-    ## 2  26.7
-    ## 3  17.6
-    ## 4  21.4
-    ## 5  15.4
-    ## 6  28.4
+    ## 2  19.0
+    ## 3  16.1
+    ## 4  16.2
+    ## 5  27.0
+    ## 6  23.8
 
-5. Evaluate Model Performance
-=============================
+(5) Evaluate Model Performance
+==============================
 
 ``` r
 # tidymodel package for measuring model performances
@@ -210,9 +210,9 @@ y_hat %>%
     ## # A tibble: 3 x 3
     ##   .metric .estimator .estimate
     ##   <chr>   <chr>          <dbl>
-    ## 1 rmse    standard       3.23 
-    ## 2 rsq     standard       0.716
-    ## 3 mae     standard       2.79
+    ## 1 rmse    standard       2.30 
+    ## 2 rsq     standard       0.863
+    ## 3 mae     standard       1.71
 
 Bonus: Changing the model and checking for a better performance
 ===============================================================
@@ -243,8 +243,8 @@ cars_rf
     ## Target node size:                 5 
     ## Variable importance mode:         none 
     ## Splitrule:                        variance 
-    ## OOB prediction error (MSE):       6.60889 
-    ## R squared (OOB):                  0.8230033
+    ## OOB prediction error (MSE):       7.422913 
+    ## R squared (OOB):                  0.8039528
 
 ``` r
 # check if fits better
@@ -256,9 +256,9 @@ predict(cars_rf, cars_testing) %>%
     ## # A tibble: 3 x 3
     ##   .metric .estimator .estimate
     ##   <chr>   <chr>          <dbl>
-    ## 1 rmse    standard       2.35 
-    ## 2 rsq     standard       0.843
-    ## 3 mae     standard       1.80
+    ## 1 rmse    standard       2.04 
+    ## 2 rsq     standard       0.925
+    ## 3 mae     standard       1.49
 
 Regression Full Code
 ====================
