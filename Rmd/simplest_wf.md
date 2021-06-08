@@ -7,9 +7,9 @@ the steps:
 
 1.  use [`{rsample}`](https://rsample.tidymodels.org/) to split the
     dataset between training and testing subsets
-2.  use [`{recipe}`](https://recipes.tidymodels.org/) to make some data
+2.  use [`{recipes}`](https://recipes.tidymodels.org/) to make some data
     preprocessing script
-3.  use [`{parnsip}`](https://parsnip.tidymodels.org/) to define a
+3.  use [`{parsnip}`](https://parsnip.tidymodels.org/) to define a
     **ranger random forest** model
 4.  put the recipe and the model in a
     [`{workflow}`](https://workflows.tidymodels.org/) object
@@ -215,13 +215,13 @@ model_fit
     ## Type:                             Regression 
     ## Number of trees:                  500 
     ## Sample size:                      380 
-    ## Number of independent variables:  12 
+    ## Number of independent variables:  13 
     ## Mtry:                             3 
     ## Target node size:                 5 
     ## Variable importance mode:         none 
     ## Splitrule:                        variance 
-    ## OOB prediction error (MSE):       11.19515 
-    ## R squared (OOB):                  0.84742
+    ## OOB prediction error (MSE):       12.42617 
+    ## R squared (OOB):                  0.8536442
 
 Predict
 =======
@@ -237,12 +237,12 @@ head(y_hat)
     ## # A tibble: 6 x 1
     ##   .pred
     ##   <dbl>
-    ## 1  35.2
-    ## 2  33.5
-    ## 3  18.9
-    ## 4  19.5
-    ## 5  17.6
-    ## 6  16.8
+    ## 1  32.7
+    ## 2  17.9
+    ## 3  19.4
+    ## 4  21.2
+    ## 5  18.5
+    ## 6  17.9
 
 Evaluate
 ========
@@ -256,9 +256,9 @@ y_hat %>%
     ## # A tibble: 3 x 3
     ##   .metric .estimator .estimate
     ##   <chr>   <chr>          <dbl>
-    ## 1 rmse    standard       3.57 
-    ## 2 rsq     standard       0.914
-    ## 3 mae     standard       2.46
+    ## 1 rmse    standard       3.22 
+    ## 2 rsq     standard       0.904
+    ## 3 mae     standard       2.21
 
 Full Code
 =========

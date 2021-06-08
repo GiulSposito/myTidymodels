@@ -12,8 +12,8 @@ output:
 This document emulates the simplest steps to make a straightforward ML using [`{tidyverse}`](https://www.tidymodels.org/) package. These are the steps:
 
 1. use [`{rsample}`](https://rsample.tidymodels.org/) to split the dataset between training and testing subsets
-1. use [`{recipe}`](https://recipes.tidymodels.org/) to make some data preprocessing script
-1. use [`{parnsip}`](https://parsnip.tidymodels.org/) to define a **ranger random forest** model
+1. use [`{recipes}`](https://recipes.tidymodels.org/) to make some data preprocessing script
+1. use [`{parsnip}`](https://parsnip.tidymodels.org/) to define a **ranger random forest** model
 1. put the recipe and the model in a [`{workflow}`](https://workflows.tidymodels.org/) object
 1. fit a model using the training subset
 1. use the fitted model to make a prediction
