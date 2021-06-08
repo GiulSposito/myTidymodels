@@ -1,6 +1,6 @@
 # myTidymodels
 
-My personnal repo for learning to use the R Tidymodels package, having test scripts and reference guides.
+My personnel repo for learning to use the R Tidymodels package, having test scripts and reference guides.
 
 # Notebooks
 

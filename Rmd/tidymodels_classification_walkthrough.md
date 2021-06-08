@@ -134,7 +134,7 @@ penguins_model
     ## Target node size:                 10 
     ## Variable importance mode:         none 
     ## Splitrule:                        gini 
-    ## OOB prediction error (Brier s.):  0.01627613
+    ## OOB prediction error (Brier s.):  0.01761894
 
 (4) Prediction
 ==============
@@ -156,7 +156,7 @@ predict(penguins_model, penguins_test)
     ##  7 Adelie     
     ##  8 Adelie     
     ##  9 Adelie     
-    ## 10 Adelie     
+    ## 10 Chinstrap  
     ## # ... with 76 more rows
 
 (5) Evaluate Model Performance
@@ -178,12 +178,12 @@ head(penguins_pred)
     ## # A tibble: 6 x 13
     ##   species .pred_class .pred_Adelie .pred_Chinstrap .pred_Gentoo bill_length_mm
     ##   <fct>   <fct>              <dbl>           <dbl>        <dbl>          <dbl>
-    ## 1 Adelie  Adelie             1             0            0               -1.38 
-    ## 2 Adelie  Adelie             1             0            0               -0.911
-    ## 3 Adelie  Adelie             1             0            0               -1.11 
-    ## 4 Adelie  Adelie             0.994         0.006        0               -0.511
-    ## 5 Adelie  Adelie             0.991         0            0.00915         -0.602
-    ## 6 Adelie  Adelie             0.982         0.00927      0.00915         -0.620
+    ## 1 Adelie  Adelie             1              0           0               -0.844
+    ## 2 Adelie  Adelie             0.964          0.005       0.0306          -0.899
+    ## 3 Adelie  Adelie             1              0           0               -1.83 
+    ## 4 Adelie  Adelie             1              0           0               -1.78 
+    ## 5 Adelie  Adelie             0.990          0.0004      0.00923         -1.08 
+    ## 6 Adelie  Adelie             0.968          0.0297      0.0025          -0.661
     ## # ... with 7 more variables: bill_depth_mm <dbl>, flipper_length_mm <dbl>,
     ## #   body_mass_g <dbl>, year <ord>, island_Dream <dbl>, island_Torgersen <dbl>,
     ## #   sex_male <dbl>
@@ -197,8 +197,8 @@ penguins_pred %>%
     ## # A tibble: 2 x 3
     ##   .metric  .estimator .estimate
     ##   <chr>    <chr>          <dbl>
-    ## 1 accuracy multiclass     0.977
-    ## 2 kap      multiclass     0.964
+    ## 1 accuracy multiclass     0.965
+    ## 2 kap      multiclass     0.945
 
 ``` r
 # checking AUC metrics
@@ -209,7 +209,7 @@ penguins_pred %>%
     ## # A tibble: 1 x 3
     ##   .metric .estimator .estimate
     ##   <chr>   <chr>          <dbl>
-    ## 1 roc_auc hand_till      0.998
+    ## 1 roc_auc hand_till      0.999
 
 ``` r
 # plotting ROC curve
@@ -228,3 +228,83 @@ penguins_pred %>%
 ```
 
 ![](tidymodels_classification_walkthrough_files/figure-markdown_github/classEval-2.png)
+\# full code
+
+``` r
+# dataset
+
+# remotes::install_github("allisonhorst/palmerpenguins")
+library(palmerpenguins)
+library(skimr)
+skim(penguins)
+
+
+# tidymodel package to split datasets (tr/ts, CV,...)
+library(rsample) 
+
+# 1. train/test sets
+penguins_split <- rsample::initial_split(penguins)
+penguins_split
+
+
+# tidymodel package to specify a sequence of transformation steps
+library(recipes)
+
+# 2. transform/recipe
+penguins_rec <- penguins_split %>%   # origim dataset
+  training() %>%                     # training split
+  recipe(species ~ ., data=.) %>%    # recipe template
+  step_knnimpute(sex) %>%            # fill NA values of colum sex (factor)
+  step_knnimpute(all_numeric()) %>%  # fill NA values of all numerical vars
+  step_center(all_numeric()) %>%     # normalize to mean = 0
+  step_scale(all_numeric()) %>%      # normalize to sd = 1
+  step_mutate(year = factor(year, ordered=T)) %>%  # factor in to ordered
+  step_dummy(c(island, sex)) %>%    # one hot encoding island and sex factors vars
+  prep()                            # calculates recipe parameters
+
+# datasets
+penguins_test <- bake(penguins_rec, testing(penguins_split))
+penguins_train <- juice(penguins_rec)
+
+# tidymodel package the uniforms the machine learnings algorithm interface
+library(parsnip) # parsnip is the caret successor
+
+# 3. fit the model
+penguins_model <- rand_forest(trees = 100, mode="classification") %>% 
+  set_engine("ranger") %>% 
+  fit(species ~ ., data=penguins_train)
+
+penguins_model
+
+# 4. predict
+predict(penguins_model, penguins_test)
+
+# tidymodel package for measuring model performances
+library(yardstick)
+
+# 5. eval
+penguins_pred <- predict(penguins_model, penguins_test) %>%  # class outcome
+  bind_cols(predict(penguins_model, penguins_test, type = "prob")) %>% # class probs
+  bind_cols(penguins_test) %>% # true value
+  relocate(species, everything())
+
+head(penguins_pred)
+
+# metrics
+penguins_pred %>% 
+  metrics(truth=species, estimate=.pred_class)
+
+# checking AUC metrics
+penguins_pred %>% 
+  roc_auc(species, .pred_Adelie:.pred_Gentoo)
+
+# plotting ROC curve
+penguins_pred %>% 
+  roc_curve(species, .pred_Adelie:.pred_Gentoo) %>% 
+  tune::autoplot() # tune is a tidymodel package to find hyper-parameters
+
+# checking gain
+penguins_pred %>% 
+  gain_curve(species, .pred_Adelie:.pred_Gentoo) %>% 
+  tune::autoplot() # tune is a tidymodel package to find hyper-parameters
+```

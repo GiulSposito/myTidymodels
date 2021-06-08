@@ -123,4 +123,87 @@ penguins_pred %>%
   tune::autoplot() # tune is a tidymodel package to find hyper-parameters
 
 ```
+# full code
+
+```{r fullCode, eval=FALSE}
+
+
+# dataset
+
+# remotes::install_github("allisonhorst/palmerpenguins")
+library(palmerpenguins)
+library(skimr)
+skim(penguins)
+
+
+# tidymodel package to split datasets (tr/ts, CV,...)
+library(rsample) 
+
+# 1. train/test sets
+penguins_split <- rsample::initial_split(penguins)
+penguins_split
+
+
+# tidymodel package to specify a sequence of transformation steps
+library(recipes)
+
+# 2. transform/recipe
+penguins_rec <- penguins_split %>%   # origim dataset
+  training() %>%                     # training split
+  recipe(species ~ ., data=.) %>%    # recipe template
+  step_knnimpute(sex) %>%            # fill NA values of colum sex (factor)
+  step_knnimpute(all_numeric()) %>%  # fill NA values of all numerical vars
+  step_center(all_numeric()) %>%     # normalize to mean = 0
+  step_scale(all_numeric()) %>%      # normalize to sd = 1
+  step_mutate(year = factor(year, ordered=T)) %>%  # factor in to ordered
+  step_dummy(c(island, sex)) %>%    # one hot encoding island and sex factors vars
+  prep()                            # calculates recipe parameters
+
+# datasets
+penguins_test <- bake(penguins_rec, testing(penguins_split))
+penguins_train <- juice(penguins_rec)
+
+# tidymodel package the uniforms the machine learnings algorithm interface
+library(parsnip) # parsnip is the caret successor
+
+# 3. fit the model
+penguins_model <- rand_forest(trees = 100, mode="classification") %>% 
+  set_engine("ranger") %>% 
+  fit(species ~ ., data=penguins_train)
+
+penguins_model
+
+# 4. predict
+predict(penguins_model, penguins_test)
+
+# tidymodel package for measuring model performances
+library(yardstick)
+
+# 5. eval
+penguins_pred <- predict(penguins_model, penguins_test) %>%  # class outcome
+  bind_cols(predict(penguins_model, penguins_test, type = "prob")) %>% # class probs
+  bind_cols(penguins_test) %>% # true value
+  relocate(species, everything())
+
+head(penguins_pred)
+
+# metrics
+penguins_pred %>% 
+  metrics(truth=species, estimate=.pred_class)
+
+# checking AUC metrics
+penguins_pred %>% 
+  roc_auc(species, .pred_Adelie:.pred_Gentoo)
+
+# plotting ROC curve
+penguins_pred %>% 
+  roc_curve(species, .pred_Adelie:.pred_Gentoo) %>% 
+  tune::autoplot() # tune is a tidymodel package to find hyper-parameters
+
+# checking gain
+penguins_pred %>% 
+  gain_curve(species, .pred_Adelie:.pred_Gentoo) %>% 
+  tune::autoplot() # tune is a tidymodel package to find hyper-parameters
+
+```
 
