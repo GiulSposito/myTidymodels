@@ -1,0 +1,126 @@
+---
+title: "Tidymodels Classification Walkthrought"
+subtitle: "using tidymodel"
+author: "Giuliano Sposito"
+output:
+  md_document:
+    variant: markdown_github
+---
+
+# Intro
+
+This notebook tells the basic steps to ML pipeline using [`{tidymodels}`](https://www.tidymodels.org/) packages, this is a continuation of [Tidymodels Regression Walkthrough](./tidymodels_regression_walkthrough.md), but we'll do a classification in this case.
+
+The traditional (without tunning) step for a ML pipeline are: 
+
+1. Split the dataset between Training and Testing subsets ([`{rsample}`](https://rsample.tidymodels.org/))
+1. Preprocessing and Feature Eng [`{recipes}`](https://recipes.tidymodels.org/)
+1. Train a model ([`{parsnip}`](https://parsnip.tidymodels.org/)) using training dataset
+1. Predict the outcome using the test dataset
+1. Eval the model performance ([`{yardstick}`](https://yardstick.tidymodels.org/))
+
+In this notebook we won't use the [`{workflow}`](https://workflows.tidymodels.org/) package, to understand the building blocks of 
+[`{tidymodels}`](https://www.tidymodels.org/).
+
+# (1) training and testing datasets
+
+```{r classSplit, message=FALSE, warning=FALSE}
+
+# dataset
+
+# remotes::install_github("allisonhorst/palmerpenguins")
+library(palmerpenguins)
+library(skimr)
+skim(penguins)
+
+
+# tidymodel package to split datasets (tr/ts, CV,...)
+library(rsample) 
+
+# 1. train/test sets
+penguins_split <- rsample::initial_split(penguins)
+penguins_split
+
+```
+
+# (2) Preprocessing and Feature Eng
+
+```{r classRecp, message=FALSE, warning=FALSE}
+
+# tidymodel package to specify a sequence of transformation steps
+library(recipes)
+
+# transform/recipe
+penguins_rec <- penguins_split %>%   # origim dataset
+  training() %>%                     # training split
+  recipe(species ~ ., data=.) %>%    # recipe template
+  step_knnimpute(sex) %>%            # fill NA values of colum sex (factor)
+  step_knnimpute(all_numeric()) %>%  # fill NA values of all numerical vars
+  step_center(all_numeric()) %>%     # normalize to mean = 0
+  step_scale(all_numeric()) %>%      # normalize to sd = 1
+  step_mutate(year = factor(year, ordered=T)) %>%  # factor in to ordered
+  step_dummy(c(island, sex)) %>%    # one hot encoding island and sex factors vars
+  prep()                            # calculates recipe parameters
+
+# datasets
+penguins_test <- bake(penguins_rec, testing(penguins_split))
+penguins_train <- juice(penguins_rec)
+
+```
+
+
+# (3) Training a model
+
+```{r classTrain, message=FALSE, warning=FALSE}
+# tidymodel package the uniforms the machine learnings algorithm interface
+library(parsnip) # parsnip is the caret successor
+
+# fit the model
+penguins_model <- rand_forest(trees = 100, mode="classification") %>% 
+  set_engine("ranger") %>% 
+  fit(species ~ ., data=penguins_train)
+
+penguins_model
+```
+
+# (4) Prediction
+
+```{r classPred, message=FALSE, warning=FALSE}
+# predict
+predict(penguins_model, penguins_test)
+```
+
+# (5) Evaluate Model Performance
+
+```{r classEval, message=FALSE, warning=FALSE}
+# tidymodel package for measuring model performances
+library(yardstick)
+
+# eval
+penguins_pred <- predict(penguins_model, penguins_test) %>%  # class outcome
+  bind_cols(predict(penguins_model, penguins_test, type = "prob")) %>% # class probs
+  bind_cols(penguins_test) %>% # true value
+  relocate(species, everything())
+
+head(penguins_pred)
+
+# metrics
+penguins_pred %>% 
+  metrics(truth=species, estimate=.pred_class)
+
+# checking AUC metrics
+penguins_pred %>% 
+  roc_auc(species, .pred_Adelie:.pred_Gentoo)
+
+# plotting ROC curve
+penguins_pred %>% 
+  roc_curve(species, .pred_Adelie:.pred_Gentoo) %>% 
+  tune::autoplot() # tune is a tidymodel package to find hyper-parameters
+
+# checking gain
+penguins_pred %>% 
+  gain_curve(species, .pred_Adelie:.pred_Gentoo) %>% 
+  tune::autoplot() # tune is a tidymodel package to find hyper-parameters
+
+```
+
