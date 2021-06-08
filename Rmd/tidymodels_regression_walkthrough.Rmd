@@ -24,7 +24,7 @@ In this notebook we won't use the [`{workflow}`](https://workflows.tidymodels.or
 
 # Regression Example
 
-## 1. training and testing datasets
+# 1. training and testing datasets
 
 ```{r regSplit, message=FALSE, warning=FALSE}
 # tidymodel package to split datasets (tr/ts, CV,...)
@@ -41,7 +41,7 @@ trn_cars <- training(cars_split)
 tst_cars <- testing(cars_split)
 ```
 
-## 2. Preprocessing and Feature Eng
+# 2. Preprocessing and Feature Eng
 
 ```{r regRecp, message=FALSE, warning=FALSE}
 # tidymodel package to specify a sequence of transformation steps
@@ -76,7 +76,7 @@ head(cars_testing)
 ```
 
 
-## 3. Training a model
+# 3. Training a model
 
 ```{r regTrain, message=FALSE, warning=FALSE}
 # tidymodel package the uniforms the machine learnings algorithm interface
@@ -97,7 +97,7 @@ summary(cars_lm$fit)
 
 ```
 
-## 4. Prediction
+# 4. Prediction
 
 ```{r regPred, message=FALSE, warning=FALSE}
 
@@ -106,7 +106,7 @@ head(y_hat)
 
 ```
 
-## 5. Evaluate Model Performance
+# 5. Evaluate Model Performance
 
 ```{r, message=FALSE, warning=FALSE}
 # tidymodel package for measuring model performances
@@ -118,7 +118,7 @@ y_hat %>%
 
 ```
 
-## Bonus: Changing the model and checking for a better performance
+# Bonus: Changing the model and checking for a better performance
 
 ```{r regBonus, message=FALSE, warning=FALSE}
 
@@ -137,11 +137,11 @@ predict(cars_rf, cars_testing) %>%
 
 ```
 
-## Regression Full Code
+# Regression Full Code
 
 ```{r regFullCode, eval=FALSE}
 
-## 1. training and testing datasets
+# 1. training and testing datasets
 
 # tidymodel package to split datasets (tr/ts, CV,...)
 library(rsample) 
@@ -157,7 +157,7 @@ trn_cars <- training(cars_split)
 tst_cars <- testing(cars_split)
 
 
-## 2. Preprocessing and Feature Eng
+# 2. Preprocessing and Feature Eng
 
 # tidymodel package to specify a sequence of transformation steps
 library(recipes)
@@ -187,7 +187,7 @@ head(cars_testing)
 
 
 
-## 3. Training a model
+# 3. Training a model
 
 # tidymodel package the uniforms the machine learnings algorithm interface
 library(parsnip) # parsnip is the caret successor
@@ -204,12 +204,12 @@ cars_lm
 summary(cars_lm$fit)
 
 
-## 4. Prediction
+# 4. Prediction
 
 y_hat <- predict(cars_lm, cars_testing)
 head(y_hat)
 
-## 5. Evaluate Model Performance
+# 5. Evaluate Model Performance
 
 # tidymodel package for measuring model performances
 library(yardstick)
@@ -219,7 +219,7 @@ y_hat %>%
   metrics(truth=mpg, estimate=.pred) # use yardstick::metrics to get the evalution metrics
 
 
-## Bonus: Changing the model and checking for a better performance
+# Bonus: Changing the model and checking for a better performance
 
 # Bonus: testing another model
 cars_rf <- rand_forest(trees = 100, mode="regression") %>% # random forest
