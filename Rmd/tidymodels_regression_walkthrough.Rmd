@@ -9,20 +9,18 @@ output:
 
 # Intro
 
-This notebook tells the basic steps to ML pipeline using [`{tidymodels}`](https://www.tidymodels.org/) packages, we'll do a regression case and a classification case.
+This notebook tells the basic steps to ML pipeline using [`{tidymodels}`](https://www.tidymodels.org/) packages, we'll do a regression case.
 
 The traditional (without tunning) step for a ML pipeline are: 
 
 1. Split the dataset between Training and Testing subsets ([`{rsample}`](https://rsample.tidymodels.org/))
 1. Preprocessing and Feature Eng [`{recipes}`](https://recipes.tidymodels.org/)
-1. Train a model ([`{parnsip}`](https://parsnip.tidymodels.org/)) using training dataset
+1. Train a model ([`{parsnip}`](https://parsnip.tidymodels.org/)) using training dataset
 1. Predict the outcome using the test dataset
 1. Eval the model performance ([`{yardstick}`](https://yardstick.tidymodels.org/))
 
 In this notebook we won't use the [`{workflow}`](https://workflows.tidymodels.org/) package, to understand the building blocks of 
 [`{tidymodels}`](https://www.tidymodels.org/).
-
-# Regression Example
 
 # (1) training and testing datasets
 
