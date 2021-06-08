@@ -74,6 +74,7 @@ recp <- BostonHousing %>%
   step_center(all_predictors(),-all_nominal()) %>% # center 
   step_scale(all_predictors(),-all_nominal()) %>%  # scale
   step_BoxCox(all_predictors(), -all_nominal())    # box cox normalization
+recp
 ```
 
 # Model Specification
@@ -81,6 +82,7 @@ recp <- BostonHousing %>%
 ```{r model}
 model_eng <- rand_forest(mode="regression") %>% 
   set_engine("ranger")
+model_eng
 ```
 
 # Workflow
@@ -89,6 +91,7 @@ model_eng <- rand_forest(mode="regression") %>%
 wf <- workflow() %>% 
   add_recipe(recp) %>%  # preprocessing specifiation (with formula)
   add_model(model_eng)  # model specification
+wf
 ```
 
 # Training the model

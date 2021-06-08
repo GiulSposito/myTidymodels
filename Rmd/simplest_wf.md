@@ -124,7 +124,23 @@ recp <- BostonHousing %>%
   step_center(all_predictors(),-all_nominal()) %>% # center 
   step_scale(all_predictors(),-all_nominal()) %>%  # scale
   step_BoxCox(all_predictors(), -all_nominal())    # box cox normalization
+recp
 ```
+
+    ## Data Recipe
+    ## 
+    ## Inputs:
+    ## 
+    ##       role #variables
+    ##    outcome          1
+    ##  predictor         13
+    ## 
+    ## Operations:
+    ## 
+    ## Sparse, unbalanced variable filter on all_predictors(), -all_nominal()
+    ## Centering for all_predictors(), -all_nominal()
+    ## Scaling for all_predictors(), -all_nominal()
+    ## Box-Cox transformation on all_predictors(), -all_nominal()
 
 Model Specification
 ===================
@@ -132,7 +148,12 @@ Model Specification
 ``` r
 model_eng <- rand_forest(mode="regression") %>% 
   set_engine("ranger")
+model_eng
 ```
+
+    ## Random Forest Model Specification (regression)
+    ## 
+    ## Computational engine: ranger
 
 Workflow
 ========
@@ -141,7 +162,25 @@ Workflow
 wf <- workflow() %>% 
   add_recipe(recp) %>%  # preprocessing specifiation (with formula)
   add_model(model_eng)  # model specification
+wf
 ```
+
+    ## == Workflow ====================================================================
+    ## Preprocessor: Recipe
+    ## Model: rand_forest()
+    ## 
+    ## -- Preprocessor ----------------------------------------------------------------
+    ## 4 Recipe Steps
+    ## 
+    ## * step_nzv()
+    ## * step_center()
+    ## * step_scale()
+    ## * step_BoxCox()
+    ## 
+    ## -- Model -----------------------------------------------------------------------
+    ## Random Forest Model Specification (regression)
+    ## 
+    ## Computational engine: ranger
 
 Training the model
 ==================
@@ -181,8 +220,8 @@ model_fit
     ## Target node size:                 5 
     ## Variable importance mode:         none 
     ## Splitrule:                        variance 
-    ## OOB prediction error (MSE):       12.09093 
-    ## R squared (OOB):                  0.8601745
+    ## OOB prediction error (MSE):       12.69973 
+    ## R squared (OOB):                  0.8467572
 
 Predict
 =======
@@ -198,12 +237,12 @@ head(y_hat)
     ## # A tibble: 6 x 1
     ##   .pred
     ##   <dbl>
-    ## 1  21.4
-    ## 2  20.1
-    ## 3  20.9
-    ## 4  20.3
-    ## 5  18.2
-    ## 6  15.7
+    ## 1  18.8
+    ## 2  21.4
+    ## 3  18.3
+    ## 4  17.6
+    ## 5  16.7
+    ## 6  15.4
 
 Evaluate
 ========
@@ -217,6 +256,6 @@ y_hat %>%
     ## # A tibble: 3 x 3
     ##   .metric .estimator .estimate
     ##   <chr>   <chr>          <dbl>
-    ## 1 rmse    standard       2.71 
-    ## 2 rsq     standard       0.924
-    ## 3 mae     standard       1.99
+    ## 1 rmse    standard       3.38 
+    ## 2 rsq     standard       0.889
+    ## 3 mae     standard       2.12
