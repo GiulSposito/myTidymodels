@@ -215,13 +215,13 @@ model_fit
     ## Type:                             Regression 
     ## Number of trees:                  500 
     ## Sample size:                      380 
-    ## Number of independent variables:  13 
+    ## Number of independent variables:  12 
     ## Mtry:                             3 
     ## Target node size:                 5 
     ## Variable importance mode:         none 
     ## Splitrule:                        variance 
-    ## OOB prediction error (MSE):       12.69973 
-    ## R squared (OOB):                  0.8467572
+    ## OOB prediction error (MSE):       11.19515 
+    ## R squared (OOB):                  0.84742
 
 Predict
 =======
@@ -237,12 +237,12 @@ head(y_hat)
     ## # A tibble: 6 x 1
     ##   .pred
     ##   <dbl>
-    ## 1  18.8
-    ## 2  21.4
-    ## 3  18.3
-    ## 4  17.6
-    ## 5  16.7
-    ## 6  15.4
+    ## 1  35.2
+    ## 2  33.5
+    ## 3  18.9
+    ## 4  19.5
+    ## 5  17.6
+    ## 6  16.8
 
 Evaluate
 ========
@@ -256,6 +256,58 @@ y_hat %>%
     ## # A tibble: 3 x 3
     ##   .metric .estimator .estimate
     ##   <chr>   <chr>          <dbl>
-    ## 1 rmse    standard       3.38 
-    ## 2 rsq     standard       0.889
-    ## 3 mae     standard       2.12
+    ## 1 rmse    standard       3.57 
+    ## 2 rsq     standard       0.914
+    ## 3 mae     standard       2.46
+
+Full Code
+=========
+
+``` r
+library(tidymodels)  
+library(mlbench)    # mlbench is a library with several dataset to perform ML trainig
+library(skimr)      # to look the dataset
+
+# loading "Boston Housing" dataset
+data("BostonHousing")
+
+# data overview
+BostonHousing %>% 
+  skim()
+
+# split 
+boston_split <- initial_split(BostonHousing)
+
+# recipe: preprocessing script
+recp <- BostonHousing %>% 
+  recipe(medv~.) %>%                               # formula goes here
+  step_nzv(all_predictors(), -all_nominal()) %>%   # remove near zero var
+  step_center(all_predictors(),-all_nominal()) %>% # center 
+  step_scale(all_predictors(),-all_nominal()) %>%  # scale
+  step_BoxCox(all_predictors(), -all_nominal())    # box cox normalization
+
+# Model Specification
+
+model_eng <- rand_forest(mode="regression") %>% 
+  set_engine("ranger")
+
+# Workflow
+
+wf <- workflow() %>% 
+  add_recipe(recp) %>%  # preprocessing specifiation (with formula)
+  add_model(model_eng)  # model specification
+
+# Training the model with workflo
+# the workflow do all by itself  calculates the data preprocessing (recipe)
+# apply to the training set fit the model using it
+model_fit <- fit(wf, training(boston_split)) 
+
+# Predict
+y_hat <- predict(model_fit, testing(boston_split))
+head(y_hat)
+
+# Evaluate
+y_hat %>% 
+  bind_cols(testing(boston_split)) %>% # binds the "true value"
+  metrics(truth=medv, estimate=.pred)  # get the estimation metrics (automatically)
+```

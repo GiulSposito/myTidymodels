@@ -96,7 +96,7 @@ wf
 
 # Training the model
 
-```{r}
+```{r fit}
 # the workflow do all by itself
 # calculates the data preprocessing (recipe)
 # apply to the training set
@@ -107,7 +107,7 @@ model_fit
 
 # Predict
 
-```{r}
+```{r pred}
 # the prediction applied on the fitted workflow automatically
 # apply the trained transformation on the new dataset
 # and predict the output using the trained model
@@ -117,9 +117,62 @@ head(y_hat)
 
 # Evaluate
 
-```{r}
+```{r eval}
 y_hat %>% 
   bind_cols(testing(boston_split)) %>% # binds the "true value"
   metrics(truth=medv, estimate=.pred)  # get the estimation metrics (automatically)
 ```
+
+
+# Full Code
+
+```{r warning=FALSE, message=FALSE, eval=FALSE}
+library(tidymodels)  
+library(mlbench)    # mlbench is a library with several dataset to perform ML trainig
+library(skimr)      # to look the dataset
+
+# loading "Boston Housing" dataset
+data("BostonHousing")
+
+# data overview
+BostonHousing %>% 
+  skim()
+
+# split 
+boston_split <- initial_split(BostonHousing)
+
+# recipe: preprocessing script
+recp <- BostonHousing %>% 
+  recipe(medv~.) %>%                               # formula goes here
+  step_nzv(all_predictors(), -all_nominal()) %>%   # remove near zero var
+  step_center(all_predictors(),-all_nominal()) %>% # center 
+  step_scale(all_predictors(),-all_nominal()) %>%  # scale
+  step_BoxCox(all_predictors(), -all_nominal())    # box cox normalization
+
+# Model Specification
+
+model_eng <- rand_forest(mode="regression") %>% 
+  set_engine("ranger")
+
+# Workflow
+
+wf <- workflow() %>% 
+  add_recipe(recp) %>%  # preprocessing specifiation (with formula)
+  add_model(model_eng)  # model specification
+
+# Training the model with workflo
+# the workflow do all by itself  calculates the data preprocessing (recipe)
+# apply to the training set fit the model using it
+model_fit <- fit(wf, training(boston_split)) 
+
+# Predict
+y_hat <- predict(model_fit, testing(boston_split))
+head(y_hat)
+
+# Evaluate
+y_hat %>% 
+  bind_cols(testing(boston_split)) %>% # binds the "true value"
+  metrics(truth=medv, estimate=.pred)  # get the estimation metrics (automatically)
+```
+
 
