@@ -25,7 +25,7 @@ The traditional steps for a ML pipeline are, with hyperparameter tunning are:
 1. Eval the model performance ([`{yardstick}`](https://yardstick.tidymodels.org/))
 
 
-# 1. split
+# (1) Split
 
 Using the [{mlbench}](https://cran.r-project.org/web/packages/mlbench/index.html)'s Sonar dataset. This is the data set used by Gorman and Sejnowski in their study of the classification of sonar signals using a neural network [1]. The task is to train a network to discriminate between sonar signals bounced off a metal cylinder and those bounced off a roughly cylindrical rock. Each pattern is a set of 60 numbers in the range 0.0 to 1.0. Each number represents the energy within a particular frequency band, integrated over a certain period of time. The integration aperture for higher frequencies occur later in time, since these frequencies are transmitted later during the chirp. The label associated with each record contains the letter "R" if the object is a rock and "M" if it is a mine (metal cylinder). The numbers in the labels are in increasing order of aspect angle, but they
 do not encode the angle directly
@@ -49,7 +49,7 @@ sonar_split
 ```
 
 
-# 2. Preprocessing and Feature Eng
+# (2) Preprocessing and Feature Eng
 
 ```{r recipe, message=FALSE, warning=FALSE}
 
@@ -64,7 +64,7 @@ sonar_recip <- sonar_split %>%
 
 ```
 
-# 3 Define a model to perform hyperparameter tunning
+# (3) Define a model to perform hyperparameter tunning
 
 ```{r tuneModel, message=FALSE, warning=FALSE}
 # define the tunable model
@@ -79,7 +79,7 @@ xgb_tune_eng <- boost_tree(
   set_engine("xgboost")
 ```
 
-# 4 CV and Hyperparameters Grid
+# (4) CV and Hyperparameters Grid
 
 ```{r cvGrid, message=FALSE, warning=FALSE}
 
@@ -97,7 +97,7 @@ xgb_grid
 
 ```
 
-# 5 Train a model cross CV and hyperparmeters grid
+# (5) Train a model cross CV and hyperparmeters grid
 
 ```{r cvTrain, message=FALSE, warning=FALSE}
 
@@ -120,7 +120,7 @@ xgb_tune_res
 
 ```
 
-# 6 Eval the hyperparameters performance
+# (6) Eval the hyperparameters performance
 
 ```{r selBestModel, message=FALSE, warning=FALSE}
 
@@ -143,7 +143,7 @@ xgb_fit <- xgb_wf %>%
   fit(training(sonar_split))
 ```
 
-# 7 Predit on Testing set
+# (7) Predit on Testing set
 
 ```{r predict, message=FALSE, warning=FALSE}
 # make the prediction 
@@ -152,7 +152,7 @@ xgb_pred <- predict(xgb_fit, testing(sonar_split)) %>%
 
 ```
 
-# 8. Eval performance result
+# (8) Eval performance result
 
 ```{r evalPerf, message=FALSE, warning=FALSE}
 # confusion matrix

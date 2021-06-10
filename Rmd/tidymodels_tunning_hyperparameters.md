@@ -31,8 +31,8 @@ are:
 8.  Eval the model performance
     ([`{yardstick}`](https://yardstick.tidymodels.org/))
 
-1. split
-========
+(1) Split
+=========
 
 Using the
 [{mlbench}](https://cran.r-project.org/web/packages/mlbench/index.html)’s
@@ -157,8 +157,8 @@ sonar_split
     ## <Analysis/Assess/Total>
     ## <156/52/208>
 
-2. Preprocessing and Feature Eng
-================================
+(2) Preprocessing and Feature Eng
+=================================
 
 ``` r
 sonar_recip <- sonar_split %>% 
@@ -170,8 +170,8 @@ sonar_recip <- sonar_split %>%
   prep()                            # calculate the transformation parameters
 ```
 
-3 Define a model to perform hyperparameter tunning
-==================================================
+(3) Define a model to perform hyperparameter tunning
+====================================================
 
 ``` r
 # define the tunable model
@@ -186,8 +186,8 @@ xgb_tune_eng <- boost_tree(
   set_engine("xgboost")
 ```
 
-4 CV and Hyperparameters Grid
-=============================
+(4) CV and Hyperparameters Grid
+===============================
 
 ``` r
 # create a CV from transformed training set
@@ -206,20 +206,20 @@ xgb_grid
     ## # A tibble: 60 x 5
     ##    trees min_n tree_depth learn_rate loss_reduction
     ##    <int> <int>      <int>      <dbl>          <dbl>
-    ##  1   722     9          7   1.48e- 7 0.0316        
-    ##  2   343    16          2   3.18e-10 0.000000000305
-    ##  3   109     7          6   1.02e- 4 0.00000184    
-    ##  4  1512    30          6   1.84e- 7 0.0398        
-    ##  5   453    19          3   6.09e- 9 2.47          
-    ##  6    39    39          1   2.09e- 3 7.97          
-    ##  7  1954    38         12   1.23e-10 0.000518      
-    ##  8  1133    25         15   9.28e- 7 5.96          
-    ##  9  1879     5         13   1.00e- 2 0.0000103     
-    ## 10   157    38         11   4.01e- 2 0.0000617     
+    ##  1   718    12          5   3.04e- 2    7.13       
+    ##  2  1801    38          2   1.03e- 5    5.16       
+    ##  3  1201    12         12   6.60e- 9    0.295      
+    ##  4   986    29          1   1.42e-10    0.000000238
+    ##  5  1071    16          5   4.43e- 9    0.000000130
+    ##  6  1942    12         11   2.16e- 5    0.000000232
+    ##  7   771    20         14   1.00e- 2    0.000000204
+    ##  8  1990    13         12   4.98e- 3    0.00620    
+    ##  9   300     2          8   2.72e-10    0.0451     
+    ## 10    49     4          2   1.21e-10   18.0        
     ## # ... with 50 more rows
 
-5 Train a model cross CV and hyperparmeters grid
-================================================
+(5) Train a model cross CV and hyperparmeters grid
+==================================================
 
 ``` r
 # speed up computation with parallel processing (optional)
@@ -251,8 +251,8 @@ xgb_tune_res
     ## 4 <split [125/31]> Fold4 <tibble [120 x 9]> <tibble [0 x 1]>
     ## 5 <split [125/31]> Fold5 <tibble [120 x 9]> <tibble [0 x 1]>
 
-6 Eval the hyperparameters performance
-======================================
+(6) Eval the hyperparameters performance
+========================================
 
 ``` r
 # what are the results
@@ -263,16 +263,16 @@ xgb_tune_res %>%
     ## # A tibble: 120 x 11
     ##    trees min_n tree_depth learn_rate loss_reduction .metric .estimator  mean
     ##    <int> <int>      <int>      <dbl>          <dbl> <chr>   <chr>      <dbl>
-    ##  1  1727     3          3   1.35e- 6 0.0000130      accura~ binary     0.712
-    ##  2  1727     3          3   1.35e- 6 0.0000130      roc_auc binary     0.788
-    ##  3  1253     4          9   1.75e- 7 0.000000562    accura~ binary     0.744
-    ##  4  1253     4          9   1.75e- 7 0.000000562    roc_auc binary     0.823
-    ##  5  1971     5         12   4.65e-10 0.000000000731 accura~ binary     0.743
-    ##  6  1971     5         12   4.65e-10 0.000000000731 roc_auc binary     0.831
-    ##  7  1139     5         12   2.05e- 3 0.00000000800  accura~ binary     0.801
-    ##  8  1139     5         12   2.05e- 3 0.00000000800  roc_auc binary     0.878
-    ##  9  1879     5         13   1.00e- 2 0.0000103      accura~ binary     0.827
-    ## 10  1879     5         13   1.00e- 2 0.0000103      roc_auc binary     0.902
+    ##  1  1792     2          5   9.02e- 6 0.000000000702 accura~ binary     0.744
+    ##  2  1792     2          5   9.02e- 6 0.000000000702 roc_auc binary     0.824
+    ##  3   300     2          8   2.72e-10 0.0451         accura~ binary     0.436
+    ##  4   300     2          8   2.72e-10 0.0451         roc_auc binary     0.700
+    ##  5  1519     2         15   4.57e- 7 0.224          accura~ binary     0.744
+    ##  6  1519     2         15   4.57e- 7 0.224          roc_auc binary     0.814
+    ##  7   850     3         11   1.10e- 5 0.0747         accura~ binary     0.756
+    ##  8   850     3         11   1.10e- 5 0.0747         roc_auc binary     0.822
+    ##  9   149     4          1   4.16e- 2 0.0000275      accura~ binary     0.802
+    ## 10   149     4          1   4.16e- 2 0.0000275      roc_auc binary     0.848
     ## # ... with 110 more rows, and 3 more variables: n <int>, std_err <dbl>,
     ## #   .config <chr>
 
@@ -285,11 +285,11 @@ xgb_tune_res %>%
     ## # A tibble: 5 x 11
     ##   trees min_n tree_depth learn_rate loss_reduction .metric .estimator  mean
     ##   <int> <int>      <int>      <dbl>          <dbl> <chr>   <chr>      <dbl>
-    ## 1  1879     5         13    1.00e-2  0.0000103     roc_auc binary     0.902
-    ## 2  1157     6          6    3.86e-2  0.0000000114  roc_auc binary     0.897
-    ## 3  1139     5         12    2.05e-3  0.00000000800 roc_auc binary     0.878
-    ## 4    21     8          4    8.51e-2  0.00276       roc_auc binary     0.868
-    ## 5  1162     5         15    4.85e-9  0.0000150     roc_auc binary     0.834
+    ## 1  1421     5          4 0.00421    0.329          roc_auc binary     0.870
+    ## 2  1093     6          7 0.00441    0.00000242     roc_auc binary     0.852
+    ## 3   149     4          1 0.0416     0.0000275      roc_auc binary     0.848
+    ## 4   795     7         15 0.00180    0.235          roc_auc binary     0.844
+    ## 5  1792     2          5 0.00000902 0.000000000702 roc_auc binary     0.824
     ## # ... with 3 more variables: n <int>, std_err <dbl>, .config <chr>
 
 ``` r
@@ -311,11 +311,11 @@ xgb_wf
     ## Boosted Tree Model Specification (classification)
     ## 
     ## Main Arguments:
-    ##   trees = 1879
+    ##   trees = 1421
     ##   min_n = 5
-    ##   tree_depth = 13
-    ##   learn_rate = 0.0100250099418767
-    ##   loss_reduction = 1.03063541744557e-05
+    ##   tree_depth = 4
+    ##   learn_rate = 0.00421196081815362
+    ##   loss_reduction = 0.328758400908061
     ## 
     ## Computational engine: xgboost
 
@@ -325,10 +325,10 @@ xgb_fit <- xgb_wf %>%
   fit(training(sonar_split))
 ```
 
-    ## [08:30:31] WARNING: amalgamation/../src/learner.cc:1095: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
+    ## [08:36:00] WARNING: amalgamation/../src/learner.cc:1095: Starting in XGBoost 1.3.0, the default evaluation metric used with the objective 'binary:logistic' was changed from 'error' to 'logloss'. Explicitly set eval_metric if you'd like to restore the old behavior.
 
-7 Predit on Testing set
-=======================
+(7) Predit on Testing set
+=========================
 
 ``` r
 # make the prediction 
@@ -336,8 +336,8 @@ xgb_pred <- predict(xgb_fit, testing(sonar_split)) %>%
   bind_cols(select(testing(sonar_split), Class))
 ```
 
-8. Eval performance result
-==========================
+(8) Eval performance result
+===========================
 
 ``` r
 # confusion matrix
@@ -347,8 +347,8 @@ xgb_pred %>%
 
     ##           Truth
     ## Prediction  M  R
-    ##          M 24 10
-    ##          R  4 14
+    ##          M 18  5
+    ##          R  5 24
 
 ``` r
 # performance metrics
@@ -359,8 +359,8 @@ xgb_pred %>%
     ## # A tibble: 2 x 3
     ##   .metric  .estimator .estimate
     ##   <chr>    <chr>          <dbl>
-    ## 1 accuracy binary         0.731
-    ## 2 kap      binary         0.448
+    ## 1 accuracy binary         0.808
+    ## 2 kap      binary         0.610
 
 ``` r
 # ROC AUC Stats
@@ -372,7 +372,7 @@ predict(xgb_fit, bake(sonar_recip, testing(sonar_split)), type="prob") %>%
     ## # A tibble: 1 x 3
     ##   .metric .estimator .estimate
     ##   <chr>   <chr>          <dbl>
-    ## 1 roc_auc binary         0.759
+    ## 1 roc_auc binary         0.845
 
 ``` r
 #Seem ROC curve
