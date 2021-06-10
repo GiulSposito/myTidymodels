@@ -1,0 +1,309 @@
+---
+title: "XGB Tunning with Tidymodels"
+author: "Giuliano Sposito"
+subtitle: using tidymodel
+output:
+  md_document:
+    variant: markdown_github
+  html_document:
+    df_print: paged
+---
+
+# Intro
+
+This notebook tells the basic steps to build ML XGBoost pipeline with hyperparametrization using [`{tidymodels}`](https://www.tidymodels.org/) packages, this is a continuation of [Tidymodels Regression Walkthrough](./tidymodels_regression_walkthrough.md), but we'll do a classification in this case.
+
+The traditional steps for a ML pipeline are, with hyperparameter tunning are: 
+
+1. Split the dataset between Training and Testing subsets ([`{rsample}`](https://rsample.tidymodels.org/))
+1. Preprocessing and Feature Eng ([`{recipes}`](https://recipes.tidymodels.org/))
+1. Define a model to perform hyperparameter tunning ([`{parsnip}`](https://parsnip.tidymodels.org/) + [`{tune}`](https://tune.tidymodels.org/))
+1. Create a Cross Validation Folds ([`{rsample}`](https://rsample.tidymodels.org/)) from training dataset and the hyperparameter grid ([`{dials}`](https://dials.tidymodels.org/). 
+1. Train a model cross CV and hyperparmeters grid ([`{workflow}`](https://workflows.tidymodels.org/))
+1. Eval the hyperparameters performance ([`{tune}`](https://tune.tidymodels.org/)), choose the best and re-traning the model in the whole training set ([`{workflow}`](https://workflows.tidymodels.org/)).
+1. Predict the outcome using the test dataset
+1. Eval the model performance ([`{yardstick}`](https://yardstick.tidymodels.org/))
+
+
+# 1. split
+
+Using the [{mlbench}](https://cran.r-project.org/web/packages/mlbench/index.html)'s Sonar dataset. This is the data set used by Gorman and Sejnowski in their study of the classification of sonar signals using a neural network [1]. The task is to train a network to discriminate between sonar signals bounced off a metal cylinder and those bounced off a roughly cylindrical rock. Each pattern is a set of 60 numbers in the range 0.0 to 1.0. Each number represents the energy within a particular frequency band, integrated over a certain period of time. The integration aperture for higher frequencies occur later in time, since these frequencies are transmitted later during the chirp. The label associated with each record contains the letter "R" if the object is a rock and "M" if it is a mine (metal cylinder). The numbers in the labels are in increasing order of aspect angle, but they
+do not encode the angle directly
+
+```{r split, message=FALSE, warning=FALSE}
+
+# Sonar Database
+library(mlbench)
+data(Sonar)
+
+# overview
+library(skimr)
+skim(Sonar)
+
+# Full load 
+library(tidymodels)
+
+# 1. splits
+sonar_split <- initial_split(Sonar)
+sonar_split
+```
+
+
+# 2. Preprocessing and Feature Eng
+
+```{r recipe, message=FALSE, warning=FALSE}
+
+sonar_recip <- sonar_split %>% 
+  training() %>% 
+  recipe(Class ~ .) %>%             # try to predict the class
+  step_nzv(all_predictors()) %>%    # remove near zero variation
+  step_center(all_predictors()) %>% # normalize do mean = 0
+  step_scale(all_predictors()) %>%  # normalize do sd = 1
+  prep()                            # calculate the transformation parameters
+
+
+```
+
+# 3 Define a model to perform hyperparameter tunning
+
+```{r tuneModel, message=FALSE, warning=FALSE}
+# define the tunable model
+xgb_tune_eng <- boost_tree(
+    mode = "classification", 
+    trees = tune(), # tune acts like a "placeholder mark" to fill later 
+    min_n = tune(),
+    tree_depth = tune(),
+    learn_rate = tune(),
+    loss_reduction = tune()
+  ) %>% 
+  set_engine("xgboost")
+```
+
+# 4 CV and Hyperparameters Grid
+
+```{r cvGrid, message=FALSE, warning=FALSE}
+
+# create a CV from transformed training set
+sonar_cv <- sonar_split %>% 
+  training() %>% 
+  vfold_cv(5)
+
+# define the tune grid
+xgb_grid <- grid_max_entropy(
+  trees(), min_n(), tree_depth(), learn_rate(), loss_reduction(),
+  size=60
+)
+xgb_grid
+
+```
+
+# 5 Train a model cross CV and hyperparmeters grid
+
+```{r cvTrain, message=FALSE, warning=FALSE}
+
+# speed up computation with parallel processing (optional)
+library(doParallel)
+all_cores <- parallel::detectCores(logical = FALSE)
+registerDoParallel(cores = all_cores)
+
+# WF
+xgb_wf <- workflow() %>% 
+  add_model(xgb_tune_eng) %>% 
+  add_formula(Class ~ .)
+
+# Perform the CV x Par Grid training
+# gets the performance 
+xgb_tune_res <- xgb_wf %>% 
+  tune_grid(resamples=sonar_cv, grid=xgb_grid)
+
+xgb_tune_res
+
+```
+
+# 6 Eval the hyperparameters performance
+
+```{r selBestModel, message=FALSE, warning=FALSE}
+
+# what are the results
+xgb_tune_res %>% 
+  collect_metrics()
+
+# show the best results (in ROC AUC metric)
+xgb_tune_res %>% 
+  show_best(metric = "roc_auc")
+
+# prepare the workflow with the best parameter
+xgb_wf <- xgb_wf %>% 
+  finalize_workflow(select_best(xgb_tune_res,"roc_auc")) 
+
+xgb_wf
+
+# final fit
+xgb_fit <- xgb_wf %>% 
+  fit(training(sonar_split))
+```
+
+# 7 Predit on Testing set
+
+```{r predict, message=FALSE, warning=FALSE}
+# make the prediction 
+xgb_pred <- predict(xgb_fit, testing(sonar_split)) %>% 
+  bind_cols(select(testing(sonar_split), Class))
+
+```
+
+# 8. Eval performance result
+
+```{r evalPerf, message=FALSE, warning=FALSE}
+# confusion matrix
+xgb_pred %>% 
+  conf_mat(truth=Class, estimate=.pred_class)
+
+# performance metrics
+xgb_pred %>% 
+  metrics(truth=Class, estimate=.pred_class)
+
+# ROC AUC Stats
+predict(xgb_fit, bake(sonar_recip, testing(sonar_split)), type="prob") %>% 
+  bind_cols(select(testing(sonar_split), Class)) %>% 
+  roc_auc(truth=Class, .pred_M )
+  
+#Seem ROC curve
+predict(xgb_fit, bake(sonar_recip, testing(sonar_split)), type="prob") %>% 
+  bind_cols(select(testing(sonar_split), Class)) %>% 
+  roc_curve(truth=Class, .pred_M ) %>% 
+  autoplot()
+
+```
+# Full Code
+
+```{r fullcode, eval=FALSE}
+
+# 1. split
+
+# Sonar Database
+library(mlbench)
+data(Sonar)
+
+# overview
+library(skimr)
+skim(Sonar)
+
+# Full load 
+library(tidymodels)
+
+# 1. splits
+sonar_split <- initial_split(Sonar)
+sonar_split
+
+# 2. Preprocessing and Feature Eng
+
+sonar_recip <- sonar_split %>% 
+  training() %>% 
+  recipe(Class ~ .) %>%             # try to predict the class
+  step_nzv(all_predictors()) %>%    # remove near zero variation
+  step_center(all_predictors()) %>% # normalize do mean = 0
+  step_scale(all_predictors()) %>%  # normalize do sd = 1
+  prep()                            # calculate the transformation parameters
+
+
+# 3 Define a model to perform hyperparameter tunning
+
+# define the tunable model
+xgb_tune_eng <- boost_tree(
+    mode = "classification", 
+    trees = tune(), # tune acts like a "placeholder mark" to fill later 
+    min_n = tune(),
+    tree_depth = tune(),
+    learn_rate = tune(),
+    loss_reduction = tune()
+  ) %>% 
+  set_engine("xgboost")
+
+
+# 4 CV and Hyperparameters Grid
+
+# create a CV from transformed training set
+sonar_cv <- sonar_split %>% 
+  training() %>% 
+  vfold_cv(5)
+
+# define the tune grid
+xgb_grid <- grid_max_entropy(
+  trees(), min_n(), tree_depth(), learn_rate(), loss_reduction(),
+  size=60
+)
+xgb_grid
+
+
+# 5 Train a model cross CV and hyperparmeters grid
+
+# speed up computation with parallel processing (optional)
+library(doParallel)
+all_cores <- parallel::detectCores(logical = FALSE)
+registerDoParallel(cores = all_cores)
+
+# WF
+xgb_wf <- workflow() %>% 
+  add_model(xgb_tune_eng) %>% 
+  add_formula(Class ~ .)
+
+# Perform the CV x Par Grid training
+# gets the performance 
+xgb_tune_res <- xgb_wf %>% 
+  tune_grid(resamples=sonar_cv, grid=xgb_grid)
+
+xgb_tune_res
+
+
+# 6 Eval the hyperparameters performance
+
+# what are the results
+xgb_tune_res %>% 
+  collect_metrics()
+
+# show the best results (in ROC AUC metric)
+xgb_tune_res %>% 
+  show_best(metric = "roc_auc")
+
+# prepare the workflow with the best parameter
+xgb_wf <- xgb_wf %>% 
+  finalize_workflow(select_best(xgb_tune_res,"roc_auc")) 
+
+xgb_wf
+
+# final fit
+xgb_fit <- xgb_wf %>% 
+  fit(training(sonar_split))
+
+# 7 Predit on Testing set
+
+# make the prediction 
+xgb_pred <- predict(xgb_fit, testing(sonar_split)) %>% 
+  bind_cols(select(testing(sonar_split), Class))
+
+
+# 8. Eval performance result
+
+# confusion matrix
+xgb_pred %>% 
+  conf_mat(truth=Class, estimate=.pred_class)
+
+# performance metrics
+xgb_pred %>% 
+  metrics(truth=Class, estimate=.pred_class)
+
+# ROC AUC Stats
+predict(xgb_fit, bake(sonar_recip, testing(sonar_split)), type="prob") %>% 
+  bind_cols(select(testing(sonar_split), Class)) %>% 
+  roc_auc(truth=Class, .pred_M )
+  
+#Seem ROC curve
+predict(xgb_fit, bake(sonar_recip, testing(sonar_split)), type="prob") %>% 
+  bind_cols(select(testing(sonar_split), Class)) %>% 
+  roc_curve(truth=Class, .pred_M ) %>% 
+  autoplot()
+
+```
+
+
