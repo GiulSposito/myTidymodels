@@ -7,6 +7,8 @@ editor_options:
   chunk_output_type: console
 ---
 
+# workflow
+
 ```{r setup}
 library(tidymodels)
 data(ames)
@@ -20,7 +22,6 @@ ames_test  <-  testing(ames_split)
 lm_model <- linear_reg() %>% set_engine("lm")
 ```
 
-# workflow
 
 ![Incorrect mental model of where model estimation occurs in the data analysis process](./Pasted image 20231204145943.png)
 

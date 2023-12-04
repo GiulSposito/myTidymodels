@@ -6,6 +6,8 @@
 -   [Evaluating the test set](#evaluating-the-test-set)
 -   [Reference](#reference)
 
+# workflow
+
     library(tidymodels)
 
     ## ── Attaching packages ────────────────────────────────────── tidymodels 1.0.0 ──
@@ -24,7 +26,7 @@
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Use tidymodels_prefer() to resolve common conflicts.
+    ## • Use suppressPackageStartupMessages() to eliminate package startup messages
 
     data(ames)
     ames <- mutate(ames, Sale_Price = log10(Sale_Price))
@@ -35,8 +37,6 @@
     ames_test  <-  testing(ames_split)
 
     lm_model <- linear_reg() %>% set_engine("lm")
-
-# workflow
 
 <figure>
 <img src="./Pasted%20image%2020231204145943.png"
