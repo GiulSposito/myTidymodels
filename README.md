@@ -8,3 +8,8 @@ My personnel repo for learning to use the R Tidymodels package, having test scri
 - [Regression Pipeline Building Blocks](./Rmd/tidymodels_regression_walkthrough.md): understanding the building blocks of tidymodel ML pipeline 
 - [Classification Pipeline Building Blocks](./Rmd/tidymodels_classification_walkthrough.md): understanding the building blocks of tidymodel ML pipeline 
 - [Hyper Parameter Tunning](./Rmd/tidymodels_tunning_hyperparameters.md): understanding Cross Validation and Hyperparameter Tunning
+
+# Notebooks from [TMwR Book](https://www.tmwr.org/)
+
+- [AMES Dataset EDA](./tmwr/chapter4_eda.md)
+- [Get know the parsnip package](./tmwr/chapter6_parsnip.md)

@@ -1,0 +1,79 @@
+---
+title: "The Ames Housing Data EDA"
+output: 
+  md_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse) # eda and transformation
+theme_set(theme_light())
+```
+
+# Dataset
+
+In this chapter, we’ll introduce the Ames housing data set ([De Cock 2011](https://www.tmwr.org/ames#ref-ames)), which we will use in modeling examples throughout this book. Exploratory data analysis, like what we walk through in this chapter, is an important first step in building a reliable model. The data set contains information on 2,930 properties in Ames, Iowa, including columns related to:
+
+. house characteristics (bedrooms, garage, fireplace, pool, porch, etc.)
+. location (neighborhood)
+. lot information (zoning, shape, size, etc.)
+. ratings of condition and quality
+. sale price
+
+> Our modeling goal is to predict the sale price of a house based on other information we have, such as its characteristics and location.
+
+```{r}
+# load data from modeldata package
+data(ames, package="modeldata")
+
+dim(ames)
+head(ames)
+skimr::skim(ames)
+
+```
+
+# EDA
+
+## Sale Price
+
+```{r}
+ames$Sale_Price |> 
+  summary()
+
+ames |> 
+  ggplot(aes(x=Sale_Price)) +
+  geom_histogram(bins=50, col="white", fill="darkblue") +
+  scale_x_continuous(labels = scales::label_dollar()) +
+  labs(title="Sales Price Distribution")
+```
+
+This plot shows us that the data are right-skewed; there are more inexpensive houses than expensive ones.
+
+```{r}
+ames |> 
+  ggplot(aes(x=Sale_Price)) +
+  geom_histogram(bins=50, col="white", fill="darkblue") +
+  scale_x_continuous(labels = scales::label_dollar(), trans = scales::log10_trans()) +
+  labs(title="Sales Price Distribution")
+
+```
+
+## Geographic Distribution
+
+```{r}
+ames |> 
+  mutate( Sale_Price = log10(Sale_Price) ) |> 
+  select(Neighborhood, Longitude, Latitude, Sale_Price) |> 
+  ggplot() +
+  geom_point(aes(x=Latitude, y=Longitude, color=Neighborhood, alpha=Sale_Price)) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge`s book [Tidy Modeling with R](https://www.tmwr.org/ames).
