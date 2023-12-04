@@ -13,3 +13,4 @@ My personnel repo for learning to use the R Tidymodels package, having test scri
 
 - [AMES Dataset EDA](./tmwr/chapter4_eda.md)
 - [Get know the parsnip package](./tmwr/chapter6_parsnip.md)
+- [Workflows](./tmwr/chapter7_workflow.md)

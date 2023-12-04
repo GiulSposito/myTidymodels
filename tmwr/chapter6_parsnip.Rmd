@@ -1,5 +1,5 @@
 ---
-title: "The Ames Housing Data EDA"
+title: "Modeling wigh Parsnip"
 output: 
   md_document:
     toc: yes
