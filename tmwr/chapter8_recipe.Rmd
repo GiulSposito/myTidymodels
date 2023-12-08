@@ -1,0 +1,322 @@
+---
+title: "Recipes"
+output: 
+  md_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Recipes
+
+```{r}
+library(tidymodels)
+data(ames)
+
+ames <- mutate(ames, Sale_Price = log10(Sale_Price))
+
+set.seed(502)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+lm_model <- linear_reg() %>% set_engine("lm")
+
+lm_wflow <- 
+  workflow() %>% 
+  add_model(lm_model) %>% 
+  add_variables(outcome = Sale_Price, predictors = c(Longitude, Latitude))
+
+lm_fit <- fit(lm_wflow, ames_train)
+```
+
+
+## A Simple Recipe
+
+we will focus on a small subset of the predictors available in the Ames housing data:
+
+- The neighborhood (qualitative, with 29 neighborhoods in the training set)
+- The gross above-grade living area (continuous, named Gr_Liv_Area)
+- The year built (Year_Built)
+- The type of building
+
+Suppose that an initial ordinary linear regression model were fit to these data. Recalling that, the sale prices were pre-logged, a standard call to lm() might look like:
+
+```{r}
+lm(Sale_Price ~ Neighborhood + log10(Gr_Liv_Area) + Year_Built + Bldg_Type, data=ames) |> summary()
+```
+
+What this formula does can be decomposed into a series of steps:
+
+1. Sale price is defined as the outcome while neighborhood, gross living area, the year built, and building type variables are all defined as predictors.
+1. A log transformation is applied to the gross living area predictor.
+1. The neighborhood and building type columns are converted from a non-numeric format to a numeric format (since least squares requires numeric predictors).
+
+A recipe is also an object that defines a series of steps for data processing. Unlike the formula method inside a modeling function, the recipe defines the steps via step_*() functions without immediately executing them; it is only a specification of what should be don
+
+```{r}
+
+simple_ames <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type, 
+         data = ames_train) |> 
+  step_log(Gr_Liv_Area, base=10) |> 
+  step_dummy(all_nominal_predictors())
+
+simple_ames
+
+```
+
+What is the advantage to using a recipe, over a formula or raw predictors? There are a few, including:
+
+1. These computations can be recycled across models since they are not tightly coupled to the modeling function.
+1. A recipe enables a broader set of data processing choices than formulas can offer.
+1. The syntax can be very compact. For example, all_nominal_predictors() can be used to capture many variables for specific types of processing while a formula would require each to be explicitly listed.
+1. All data processing can be captured in a single R object instead of in scripts that are repeated, or even spread across different files.
+
+## Using Recipes
+
+Remove old pre processors and add a recipe
+
+```{r}
+lm_wflow <- 
+  lm_wflow |> 
+  remove_variables() |> 
+  add_recipe(simple_ames)
+
+lm_wflow
+```
+
+Fit 
+
+```{r}
+lm_fit <- fit(lm_wflow, ames_train)
+
+lm_fit |> 
+  tidy() |> 
+  slice(1:5)
+```
+
+Predict
+
+```{r}
+predict(lm_fit, ames_test |> slice(1:5))
+```
+
+Extracing model
+
+```{r}
+lm_fit |> 
+  extract_recipe(estimated = T) # prepared
+
+lm_fit |> 
+  extract_fit_parsnip() |> 
+  tidy() |> 
+  slice(1:5)
+```
+
+
+## Encoding Qualitative Data
+
+One of the most common feature engineering tasks.
+
+- `step_unknow()` can be used to change missing values
+- `step_novel()` to anticipate a new factor level in future data
+- `step_other()` can be used to analyse frequencies
+
+```{r}
+ames |> 
+  count(Neighborhood, name = "count") |> 
+  ggplot(aes(x=count, y=Neighborhood)) +
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  labs(title = "Frequency Analysis of Neighborhood")
+```
+
+Lumping low frequency Neighborhood
+
+```{r}
+
+ames |> 
+  recipe(Sale_Price~Neighborhood, data=_) |> 
+  step_other(all_nominal_predictors(), threshold = 0.01) |> 
+  prep() |> 
+  juice() |> 
+  count(Neighborhood, name="count") |> 
+  ggplot(aes(x=count, y=Neighborhood)) +
+  geom_col(position = "dodge") +
+  theme_minimal() +
+  labs(title = "Frequency Analysis of Neighborhood",
+       subtitle = "With step_other applyed")
+
+```
+
+## Extending Simple Recipe
+
+```{r}
+simple_ames <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type,
+         data = ames_train) %>%
+  step_log(Gr_Liv_Area, base = 10) %>% 
+  step_other(Neighborhood, threshold = 0.01) %>% 
+  step_dummy(all_nominal_predictors())
+
+simple_ames
+```
+
+Many, but not all, underlying model calculations require predictor values to be encoded as numbers. Notable exceptions include tree-based models, rule-based models, and naive Bayes models.
+
+The most common method for converting a factor predictor to a numeric format is to create dummy or indicator variables.
+
+```{r}
+simple_ames |> 
+  prep() |> 
+  juice() |> 
+  select(starts_with("Bldg_Type")) |> 
+  slice(1:10) |> 
+  bind_cols(
+    ames_train |> 
+      select(Orig_Value=Bldg_Type) |> 
+      slice(1:10) 
+  ) |> 
+  select(Orig_Value, everything()) |> 
+  (\(.x) set_names(.x, stringr::str_remove_all(names(.x), "Bldg_Type_")) )()
+
+```
+
+## Interaction Terms
+
+Interaction effects involve two or more predictors. Such an effect occurs when one predictor has an effect on the outcome that is contingent on one or more other predictors.
+
+```{r}
+ames_train |> 
+  ggplot(aes(Gr_Liv_Area, y=10^Sale_Price)) +
+  geom_point(alpha=.3) +
+  facet_wrap(~Bldg_Type) +
+  geom_smooth(method=lm, formula=y~x, se=F, color="lightblue")+
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(x="Gross Living Area", y="Sale Price (USD)") +
+  scale_y_continuous(labels = scales::label_dollar())
+```
+
+We might find that the regression slopes for the gross living area differ for different building types. How are interactions specified in a recipe? A base R formula would take an interaction using a `:`
+
+```{r eval=FALSE}
+Sale_Price ~ Neighborhood + log10(Gr_Liv_Area) + Bldg_Type + 
+  log10(Gr_Liv_Area):Bldg_Type
+# or
+Sale_Price ~ Neighborhood + log10(Gr_Liv_Area) * Bldg_Type 
+```
+
+Where `*` expands those columns to the main effects and interaction term. Again, the formula method does many things simultaneously and understands that a factor variable (such as Bldg_Type) should be expanded into dummy variables first and that the interaction should involve all of the resulting binary columns.
+
+Recipes are more explicit and sequential, and they give you more control
+
+```{r}
+simple_ames <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type,
+         data = ames_train) %>%
+  step_log(Gr_Liv_Area, base = 10) %>% 
+  step_other(Neighborhood, threshold = 0.01) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  # Gr_Liv_Area is on the log scale from a previous step
+  step_interact( ~ Gr_Liv_Area:starts_with("Bldg_Type_") )
+```
+
+## Spline functions
+
+When a predictor has a nonlinear relationship with the outcome, some types of predictive models can adaptively approximate this relationship during training. However, simpler is usually better and it is not uncommon to try to use a simple model, such as a linear fit, and add in specific nonlinear features for predictors that may need them, such as longitude and latitude for the Ames housing data.
+
+One common method for doing this is to use spline functions to represent the data. Splines replace the existing numeric predictor with a set of columns that allow a model to emulate a flexible, nonlinear relationship
+
+```{r}
+library(patchwork)
+library(splines)
+
+plot_smoother <- function(deg_free, ames_data) {
+  ggplot(ames_data, aes(x = Latitude, y = 10 ^ Sale_Price)) +
+    geom_point(alpha = .2) +
+    scale_y_log10(labels=scales::label_dollar()) +
+    geom_smooth(
+      method = lm,
+      formula = y ~ ns(x, df = deg_free),
+      color = "lightblue",
+      se = F
+    ) +
+    labs(title = paste(deg_free, "Spline Terms"), y = "Sale Price (USD)")
+}
+
+( plot_smoother(2, ames_train) + plot_smoother(5, ames_train)) /
+  (plot_smoother(20, ames_train) + plot_smoother(100, ames_train))
+
+```
+
+The ns() function in the splines package generates feature columns using functions called natural splines.
+
+Some panels in Figure  clearly fit poorly; two terms underfit the data while 100 terms overfit. The panels with five and twenty terms seem like reasonably smooth fits that catch the main patterns of the data. This indicates that the proper amount of “nonlinear-ness” matters. The number of spline terms could then be considered a tuning parameter for this model.
+
+```{r}
+ames_rec <-
+  recipe(
+    Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type + Latitude + Longitude,
+    data = ames_train
+  ) |>
+  step_log(Gr_Liv_Area, base = 10) |>
+  step_other(Neighborhood, threshold = .01) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_interact( ~ Gr_Liv_Area:starts_with("Bldg_Type_")) |>
+  step_ns(Latitude, deg_free = 20)
+```
+
+## Tidy
+
+Apply `tidy()` to a recipe
+
+```{r}
+ames_rec
+tidy(ames_rec)
+```
+ 
+We can specify the `id` of a step
+
+```{r}
+ames_rec <-
+  recipe(
+    Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type + Latitude + Longitude,
+    data = ames_train
+  ) |>
+  step_log(Gr_Liv_Area, base = 10) |>
+  step_other(Neighborhood, threshold = .01, id="my_id") |>
+  step_dummy(all_nominal_predictors(), id="dummy") |>
+  step_interact( ~ Gr_Liv_Area:starts_with("Bldg_Type_")) |>
+  step_ns(Latitude, deg_free = 20)
+```
+
+Fit the workflow
+
+```{r}
+lm_wflow <- 
+  workflow() |> 
+  add_model(lm_model) |> 
+  add_recipe(ames_rec) 
+
+lm_fit <- fit(lm_wflow, ames_train)
+
+```
+
+The `tidy()` can be colled again along with the `id` to get our results for a applying `step_other()`:
+
+```{r}
+estimated_recipe <- 
+  lm_fit |> 
+  extract_recipe(estimated=T)
+
+tidy(estimated_recipe, id="my_id")
+tidy(estimated_recipe, id="dummy")
+
+```
+
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge`s book [Tidy Modeling with R](https://www.tmwr.org/recipes).
