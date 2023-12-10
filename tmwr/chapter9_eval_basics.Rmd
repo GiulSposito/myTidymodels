@@ -1,0 +1,228 @@
+---
+title: "Model Evaluation I"
+output: 
+  md_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Model Evaluation - Basics
+
+This chapter will demonstrate the yardstick package, a core tidymodels packages with the focus of measuring model performance.
+
+```{r}
+library(tidymodels)
+data(ames)
+ames <- mutate(ames, Sale_Price = log10(Sale_Price))
+
+set.seed(502)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+ames_rec <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type + 
+           Latitude + Longitude, data = ames_train) %>%
+  step_log(Gr_Liv_Area, base = 10) %>% 
+  step_other(Neighborhood, threshold = 0.01) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_interact( ~ Gr_Liv_Area:starts_with("Bldg_Type_") ) %>% 
+  step_ns(Latitude, Longitude, deg_free = 20)
+  
+lm_model <- linear_reg() %>% set_engine("lm")
+
+lm_wflow <- 
+  workflow() %>% 
+  add_model(lm_model) %>% 
+  add_recipe(ames_rec)
+
+lm_fit <- fit(lm_wflow, ames_train)
+```
+
+## Regression Metrics
+
+Tidymodels prediction functions produce tibbles with columns for the predicted values. These columns have consistent names, and the functions in the `yardstick` package that produce performance metrics have consistent interfaces. The functions are data frame-based, as opposed to vector-based, with the general syntax of:
+
+```{r eval=FALSE}
+function(data, truth, ...)
+```
+
+Where `data` is a data frame or tibble and `truth` is the column with the observed outcome values. The ellipses or other arguments are used to specify the column(s) containing the predictions.
+
+```{r}
+ames_test_res <- predict(lm_fit, new_data = ames_test |> select(-Sale_Price))
+ames_test_res
+```
+
+
+The predicted numeric outcome from the regression model is named `.pred.` Let’s match the predicted values with their corresponding observed outcome values
+
+```{r}
+ames_test_res <- bind_cols(ames_test_res, ames_test |> select(Sale_Price))
+ames_test_res
+```
+
+We see that these values mostly look close, but we don’t yet have a quantitative understanding of how the model is doing because we haven’t computed any performance metrics. Note that both the predicted and observed outcomes are in log-10 units. **It is best practice to analyze the predictions on the transformed scale (if one were used)** even if the predictions are reported using the original units.
+
+```{r}
+ames_test_res |> 
+  ggplot(aes(x=Sale_Price, y=.pred)) +
+  geom_abline(lty=2) +
+  geom_point(alpha=.5) +
+  labs(y="Predicted Sale Price (log10)", x="Sale Price (log10)") +
+  coord_obs_pred()
+```
+
+
+There is one low-price property that is substantially over-predicted, i.e., quite high above the dashed line. Let’s compute the root mean squared error for this model using the `rmse()` function:
+
+```{r}
+rmse(ames_test_res, truth = Sale_Price, estimate=.pred)
+```
+
+To compute multiple metrics at once, we can create a _metric set_.
+
+```{r}
+ames_metrics <- metric_set(rmse, rsq, mae)
+ames_metrics(ames_test_res, truth=Sale_Price, estimate=.pred)
+```
+
+## Binary Classification Metrics
+
+We'll swith a differente dataset to illustrate classification.
+
+```{r}
+data("two_class_example")
+tibble(two_class_example)
+```
+
+The second and third columns are the predicted class probabilities for the test set while `predicted` are the discrete predictions.
+
+For the hard class predictions, a variety of `yardstick` functions are helpful:
+
+```{r}
+conf_mat(two_class_example, truth = truth, estimate = predicted)
+class_metrics <- metric_set(accuracy, precision, recall, sens, mcc, f_meas)
+class_metrics(two_class_example,truth = truth, estimate = predicted)
+
+```
+
+The _Matthews correlation coefficient_ and _F1 score_ both summarize the confusion matrix, but compared to `mcc()`, which measures the quality of both positive and negative examples, the `f_meas()` metric emphasizes the positive class, i.e., the event of interest.
+
+There is no common convention on which factor level should automatically be considered the "event" or "positive" result when computing binary classification metrics. In `yardstick`, the default is to use the first level,  To alter this, change the argument `event_level` to "second" to consider the last level of the factor the level of interest
+
+```{r}
+f_meas(two_class_example, truth, predicted, event_level = "second")
+```
+
+### ROC e AUC
+
+There are two yardstick functions for this method: `roc_curve()` computes the data points that make up the ROC curve and `roc_auc()` computes the area under the curve.
+
+```{r}
+two_class_curve <- roc_curve(two_class_example, truth, Class1)
+two_class_curve
+two_class_curve |> 
+  mutate(specificity=1-specificity) |> 
+  ggplot(aes(x=specificity, y=sensitivity)) +
+  geom_line() +
+  labs(x="1-specificity") +
+  geom_abline(lty=2) +
+  coord_obs_pred() +
+  theme_light()
+
+# or...
+autoplot(two_class_curve)
+
+roc_auc(two_class_example, truth, Class1)
+```
+
+## MULTICLASS CLASSIFICATION METRICS
+
+```{r}
+data(hpc_cv)
+tibble(hpc_cv)
+
+hpc_cv |> 
+  count(obs, pred) |> 
+  pivot_wider(id_cols=obs, names_from = pred, values_from = n)
+```
+
+```{r}
+accuracy(hpc_cv, obs, pred)
+mcc(hpc_cv, obs, pred)
+```
+
+There are methods for taking metrics designed to handle outcomes with only two classes and extend them for outcomes with more than two classes. For example, a metric such as sensitivity measures the true positive rate which, by definition, is specific to two classes (i.e., “event” and “nonevent”)
+
+There are wrapper methods that can be used to apply sensitivity to our four-class outcome. These options are macro-averaging, macro-weighted averaging, and micro-averaging:
+
+ - Macro-averaging computes a set of one-versus-all metrics using the standard two-class statistics. These are averaged.
+ - Macro-weighted averaging does the same but the average is weighted by the number of samples in each class.
+ - Micro-averaging computes the contribution for each class, aggregates them, then computes a single metric from the aggregates.
+
+The manual calculations for these averaging methods are:
+
+```{r}
+class_totals <- hpc_cv |> 
+  count(obs, name="totals") |> 
+  mutate(class_wts=totals/sum(totals))
+class_totals
+
+cell_counts <- hpc_cv |> 
+  group_by(obs, pred) |> 
+  count() |> 
+  ungroup()
+cell_counts
+  
+# compute sensitivities using 1 vs all
+one_versus_all <- cell_counts |> 
+  filter(obs==pred) |> # true value
+  full_join(class_totals, by="obs") |> 
+  mutate( sens = n/totals)
+one_versus_all
+
+# Three different estimates
+one_versus_all |> 
+  summarise(
+    macro = mean(sens), 
+    macro_wt=weighted.mean(sens, class_wts), 
+    micro = sum(n)/sum(totals)
+  )
+
+```
+
+Thankfully, there is no need to manually implement these averaging methods. Instead, `yardstick` functions can automatically apply these methods via the `estimator` argument:
+
+```{r}
+sensitivity(hpc_cv, obs, pred, estimator = "macro")
+sensitivity(hpc_cv, obs, pred, estimator = "macro_weighted")
+sensitivity(hpc_cv, obs, pred, estimator = "micro")
+```
+
+When dealing with probability estimates, there are some metrics with multiclass analogs.
+
+```{r}
+roc_auc(hpc_cv, obs, VF, F, M, L)
+roc_auc(hpc_cv, obs, VF, F, M, L, estimator="macro_weighted")
+```
+
+Finally, all of these performance metrics can be computed using dplyr groupings.
+
+```{r}
+hpc_cv |> 
+  group_by(Resample) |> 
+  accuracy(obs, pred)
+```
+
+The groupings also translate to the autoplot() methods.
+
+```{r}
+hpc_cv |> 
+  group_by(Resample) |> 
+  roc_curve(obs, VF, F, M, L) |> 
+  autoplot()
+```
+
+
