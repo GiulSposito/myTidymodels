@@ -11,8 +11,14 @@ My personnel repo for learning to use the R Tidymodels package, having test scri
 
 # Notebooks from [TMwR Book](https://www.tmwr.org/)
 
+## Tidymodels Basics
+
 - [AMES Dataset EDA](./tmwr/chapter4_eda.md)
 - [Get know the parsnip package](./tmwr/chapter6_parsnip.md)
 - [Workflows](./tmwr/chapter7_workflow.md)
 - [Recipes](./tmwr/chapter8_recipe.md)
 - [Model Eval - Basics](./tmwr/chapter9_eval_basics.md)
+
+## Tidymodels Effective
+
+- [Resampling]()
