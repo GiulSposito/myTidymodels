@@ -1,0 +1,235 @@
+---
+title: "Comparing Models with Resampling"
+output: 
+  md_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Comparing Models with Resampling
+
+```{r}
+library(tidymodels)
+data(ames)
+ames <- mutate(ames, Sale_Price = log10(Sale_Price))
+
+set.seed(502)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+ames_rec <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type + 
+           Latitude + Longitude, data = ames_train) %>%
+  step_log(Gr_Liv_Area, base = 10) %>% 
+  step_other(Neighborhood, threshold = 0.01) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_interact( ~ Gr_Liv_Area:starts_with("Bldg_Type_") ) %>% 
+  step_ns(Latitude, Longitude, deg_free = 20)
+
+lm_model <- linear_reg() %>% set_engine("lm")
+
+lm_wflow <- 
+  workflow() %>% 
+  add_model(lm_model) %>% 
+  add_recipe(ames_rec)
+
+lm_fit <- fit(lm_wflow, ames_train)
+
+rf_model <- 
+  rand_forest(trees = 1000) %>% 
+  set_engine("ranger") %>% 
+  set_mode("regression")
+
+rf_wflow <- 
+  workflow() %>% 
+  add_formula(
+    Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type + 
+      Latitude + Longitude) %>% 
+  add_model(rf_model) 
+
+set.seed(1001)
+ames_folds <- vfold_cv(ames_train, v = 10)
+
+keep_pred <- control_resamples(save_pred = TRUE, save_workflow = TRUE)
+
+set.seed(1003)
+rf_res <- rf_wflow %>% fit_resamples(resamples = ames_folds, control = keep_pred)
+```
+
+## CREATING MULTIPLE MODELS WITH WORKFLOW SETS
+
+Ltes create three different linear models that add different preprocessing steps incrementally, so we can test whether these additional terms impove the models results
+
+```{r}
+# three recipes
+
+# basice one
+basic_rec <- 
+  recipe( Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type +
+            Latitude + Longitude, data=ames_train) |> 
+  step_log(Gr_Liv_Area, base=10) |> 
+  step_other(Neighborhood, threshold=0.01) |> 
+  step_dummy(all_nominal_predictors())
+
+# with interaction terms
+interaction_rec <- 
+  basic_rec |> 
+  step_interact(~Gr_Liv_Area:starts_with("Bldg_Type"))
+
+
+# with splines
+spline_rec <- 
+  interaction_rec |> 
+  step_ns(Latitude, Longitude, deg_free = 50)
+
+basic_rec
+interaction_rec
+spline_rec
+
+# using workflow set to create workflow with different recipes
+lm_models <-
+  workflow_set(
+    preproc = list(
+      basic = basic_rec,
+      interact = interaction_rec,
+      splines = spline_rec
+    ),
+    models = list(lm = linear_reg()),
+    cross = F
+  )
+lm_models
+```
+
+We'd like to resample each of the models in turn.
+
+```{r}
+lm_models <-
+  lm_models |>
+  workflow_map(
+    "fit_resamples",
+    seed = 1101,
+    verbose = T,
+    resamples = ames_folds,
+    control = keep_pred
+  )
+lm_models
+```
+
+
+```{r}
+collect_metrics(lm_models) |> 
+  filter(.metric=="rmse")
+```
+
+What about the random forest model?
+
+```{r}
+# get the workflow and converto to a workflow set, bind with the lms
+four_models <- as_workflow_set(rand_forest = rf_res) |> 
+  bind_rows(lm_models)
+
+# it was fitted using the same ames_fold
+four_models 
+```
+
+```{r}
+autoplot(four_models)
+
+#focusing in the Rˆ2 metric
+library(ggrepel) 
+autoplot(four_models, metric="rsq") +
+  geom_text_repel(aes(label=wflow_id), 
+                  nudge_x = 1/8, nudge_y = 1/100) +
+  theme(legend.position = "none")
+```
+
+## COMPARING RESAMPLED PERFORMANCE STATISTICS
+
+Considering the preceding results for the three linear models, it appears that the additional terms do not profoundly improve the mean $RMSE$ or $Rˆ2$ statistics for the linear models. The difference is small, but it might be larger than the experimental noise in the system, i.e., considered statistically significant. We can formally test the hypothesis that the additional terms increase $Rˆ2$.
+
+> Before making between-model comparisons, it is important for us to discuss the within-resample correlation for resampling statistics.
+
+let’s gather the individual resampling statistics for the linear models and the random forest. We will focus on the $Rˆ2$ statistic for each mode
+
+```{r}
+
+rsq_indiv_estimates <-
+  collect_metrics(four_models, summarize = FALSE) |>
+  filter(.metric == "rsq")
+
+rsq_wider <-
+  rsq_indiv_estimates |>
+  select(wflow_id, .estimate, id) |>
+  pivot_wider(id_cols = id,
+              names_from = wflow_id,
+              values_from = .estimate)
+
+corrr::correlate(rsq_wider |> 
+                   select(-id)) |> 
+  autoplot() +
+  geom_text(aes(label=round(r,3)))
+
+```
+
+These correlations are high, and indicate that, across models, there are large within-resample correlations. To see this visually, the $Rˆ2$ statistics are shown for each model with lines connecting the resamples:
+
+```{r}
+rsq_indiv_estimates |> 
+  mutate(wflow_id = reorder(wflow_id, .estimate)) |> 
+  ggplot(aes(x=wflow_id, y=.estimate, group=id, color=id)) +
+  geom_line(alpha=.5, linewidth=1.25) +
+  theme_light() +
+  theme(legend.position = "none") 
+```
+
+A statistical test for the correlations evaluates whether the magnitudes of these correlations are not simply noise. 
+
+```{r}
+rsq_wider |> 
+  with( cor.test(basic_lm, splines_lm) ) |> 
+  tidy() |> 
+  select(estimate, starts_with("conf"))
+```
+
+The results of the correlation test (the estimate of the correlation and the confidence intervals) show us that the within-resample correlation appears to be real.
+
+## SIMPLE HYPOTHESIS TESTING METHODS
+
+<!--
+
+We can use simple hypothesis testing to make formal comparisons between models. Consider the familiar linear statistical model:
+
+$$y_{ij}=\beta_{0} + \beta_{1}x_{i1} + \dots + \beta_{p}x_{ip} + \epsilon_{ij}$$
+
+This versatile model is used to create regression models as well as being the basis for the popular analysis of variance (ANOVA) technique for comparing groups. With the ANOVA model, the predictors ($x_{ij}$) are binary dummy variables for different groups. From this, the $\beta$ parameters estimate whether two or more groups are different from one another using hypothesis testing techniques.
+
+--> 
+
+A simple and fast method for comparing two models at a time is to use the differences in $Rˆ2$ values as the outcome data in the ANOVA model. Since the outcomes are matched by resample, the differences do not contain the resample-to-resample effect and, for this reason, the standard ANOVA model is appropriate. To illustrate, this call to `lm()` tests the difference between two of the linear regression models:
+
+```{r}
+# using LM
+compare_lm <- rsq_wider |> 
+  mutate(difference=splines_lm - basic_lm)
+
+lm(difference ~ 1, data=compare_lm) |> 
+  tidy(conf.int = T) |> 
+  select(estimate, p.value, starts_with("conf"))
+
+# using a t.test
+rsq_wider %>% 
+  with( t.test(splines_lm, basic_lm, paired = TRUE) ) %>%
+  tidy() %>% 
+  select(estimate, p.value, starts_with("conf"))
+
+```
+
+We could evaluate each pair-wise difference in this way. Note that the p-value indicates a statistically significant signal; the collection of spline terms for longitude and latitude do appear to have an effect. However, the difference in $R^2$ is estimated at 0.91%. If our practical effect size were 2%, we might not consider these terms worth including in the model.
+
+> `p-value`: “Informally, it is the probability under a specified statistical model that a statistical summary of the data (e.g., the sample mean difference between two compared groups) would be equal to or more extreme than its observed value.”
+
+
+
+

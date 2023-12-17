@@ -21,4 +21,4 @@ My personnel repo for learning to use the R Tidymodels package, having test scri
 
 ## Tidymodels Effective
 
-- [Resampling]()
+- [Resampling](./tmwr/chapter10_resamplingForPerformance.md)
