@@ -195,6 +195,60 @@ rsq_wider |>
 
 The results of the correlation test (the estimate of the correlation and the confidence intervals) show us that the within-resample correlation appears to be real.
 
+### ANOVA
+
+#### One-way Comparation
+
+We want to know if there is any significant difference between the average `.estimates` of $R^2$ in the different models.
+
+```{r}
+# one-way
+rsq_indiv_estimates |> 
+  select(wflow=wflow_id, id, value=.estimate) |> 
+  aov(value ~ wflow, data =_) |> 
+  summary()
+```
+
+As the `p-value` is less than the significance level 0.05, we can conclude that there are significant differences between the groups highlighted with “*" in the model summary.
+
+#### Pair Wise Comparation
+
+As the ANOVA test is significant, we can compute Tukey HSD (Tukey Honest Significant Differences, R function: `TukeyHSD()`) for performing multiple pairwise-comparison between the means of groups.
+
+The function `TukeyHD()` takes the fitted ANOVA as an argument.
+
+```{r}
+rsq_indiv_estimates |> 
+  select(wflow=wflow_id, id, value=.estimate) |> 
+  aov(value ~ wflow, data =_) |>
+  TukeyHSD() 
+```
+
+It can be seen from the output, that only the difference between `rand_forest` and `basic_lm` is significant with an adjusted `p-value` of 0.048.
+
+```{r}
+# using parwise t-test
+pairwise.t.test(rsq_indiv_estimates$.estimate, 
+                rsq_indiv_estimates$wflow_id, 
+                p.adjust.method = "BH")
+```
+
+The result is a table of p-values for the pairwise comparisons. Here, the p-values have been adjusted by the Benjamini-Hochberg method.
+
+#### Check for homoscadeasticity
+
+The ANOVA test assumes that, the data are normally distributed and the variance across groups are homogeneous. We can check that with some diagnostic plots.
+
+```{r}
+par(mfrow=c(2,2))
+rsq_indiv_estimates |> 
+  select(wflow=wflow_id, id, value=.estimate) |> 
+  aov(value ~ wflow, data =_) |> 
+  plot()
+par(mfrow=c(1,1))
+```
+
+
 ## SIMPLE HYPOTHESIS TESTING METHODS
 
 <!--
@@ -230,6 +284,77 @@ We could evaluate each pair-wise difference in this way. Note that the p-value i
 
 > `p-value`: “Informally, it is the probability under a specified statistical model that a statistical summary of the data (e.g., the sample mean difference between two compared groups) would be equal to or more extreme than its observed value.”
 
+## Bayesian Methods
 
+```{r}
+library(tidyposterior)
+library(rstanarm)
 
+rsq_anova <- 
+  perf_mod(
+    four_models,
+    metric="rsq",
+    prior_intercept = rstanarm::student_t(df=1),
+    chains=4,
+    seed=1102
+  )
 
+# Take a random sample from the posterior distribution
+# so set the seed again to be reproducible. 
+rsq_anova |> 
+  tidy(seed = 1103)
+
+```
+
+```{r}
+rsq_anova |> 
+  tidy(seed=1103) |> 
+  mutate(model=forcats::fct_inorder(model)) |> 
+  ggplot(aes(x=posterior)) +
+  geom_histogram(bins=50, color="white", fill="blue", alpha=.6) +
+  facet_wrap(~model, ncol=1) +
+  theme_light()
+
+```
+
+These histograms describe the estimated probability distributions of the mean $R^2$ value for each model. There is some overlap, especially for the three linear models.
+
+```{r}
+rsq_anova |> 
+  tidy(seed=1103) |> 
+  autoplot() +
+  theme_light()
+
+rsq_anova |> 
+  autoplot() +
+  geom_text_repel(aes(label=workflow), nudge_x=1/8, nudge_y = 1/100) +
+  theme_light()
+  theme(legend.position = "nonee")
+
+```
+
+One wonderful aspect of using resampling with Bayesian models is that, once we have the posteriors for the parameters, it is trivial to get the posterior distributions for combinations of the parameters. 
+
+```{r}
+rsq_diff <- 
+  contrast_models(rsq_anova,
+                  list_1 = "splines_lm",
+                  list_2 = "basic_lm",
+                  seed=1104)
+
+rsq_diff |> 
+  as_tibble() |> 
+  ggplot(aes(x=difference)) +
+  geom_vline(xintercept = 0, lty=2) +
+  geom_histogram(bins=50, color="white", fill="red", alpha=.6) +
+  theme_light()
+```
+
+The `summary()` method for this object computes the mean of the distribution as well as credible intervals, the Bayesian analog to confidence intervals.
+
+```{r}
+summary(rsq_diff) |> 
+  select(-starts_with("pract"))
+```
+
+The `probability` column reflects the proportion of the posterior that is greater than zero.

@@ -4,8 +4,10 @@
         SETS](#creating-multiple-models-with-workflow-sets)
     -   [COMPARING RESAMPLED PERFORMANCE
         STATISTICS](#comparing-resampled-performance-statistics)
+        -   [ANOVA](#anova)
     -   [SIMPLE HYPOTHESIS TESTING
         METHODS](#simple-hypothesis-testing-methods)
+    -   [Bayesian Methods](#bayesian-methods)
 
 # Comparing Models with Resampling
 
@@ -27,7 +29,7 @@
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Use tidymodels_prefer() to resolve common conflicts.
+    ## • Learn how to get started at https://www.tidymodels.org/start/
 
     data(ames)
     ames <- mutate(ames, Sale_Price = log10(Sale_Price))
@@ -217,15 +219,15 @@ We’d like to resample each of the models in turn.
 
     ## i 1 of 3 resampling: basic_lm
 
-    ## ✔ 1 of 3 resampling: basic_lm (1.2s)
+    ## ✔ 1 of 3 resampling: basic_lm (1.4s)
 
     ## i 2 of 3 resampling: interact_lm
 
-    ## ✔ 2 of 3 resampling: interact_lm (1.3s)
+    ## ✔ 2 of 3 resampling: interact_lm (1.5s)
 
     ## i 3 of 3 resampling: splines_lm
 
-    ## ✔ 3 of 3 resampling: splines_lm (2.2s)
+    ## ✔ 3 of 3 resampling: splines_lm (2.7s)
 
     lm_models
 
@@ -344,6 +346,96 @@ The results of the correlation test (the estimate of the correlation and
 the confidence intervals) show us that the within-resample correlation
 appears to be real.
 
+### ANOVA
+
+#### One-way Comparation
+
+We want to know if there is any significant difference between the
+average `.estimates` of *R*<sup>2</sup> in the different models.
+
+    # one-way
+    rsq_indiv_estimates |> 
+      select(wflow=wflow_id, id, value=.estimate) |> 
+      aov(value ~ wflow, data =_) |> 
+      summary()
+
+    ##             Df  Sum Sq  Mean Sq F value Pr(>F)  
+    ## wflow        3 0.01079 0.003598   3.131 0.0374 *
+    ## Residuals   36 0.04137 0.001149                 
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+As the `p-value` is less than the significance level 0.05, we can
+conclude that there are significant differences between the groups
+highlighted with “\*” in the model summary.
+
+#### Pair Wise Comparation
+
+As the ANOVA test is significant, we can compute Tukey HSD (Tukey Honest
+Significant Differences, R function: `TukeyHSD()`) for performing
+multiple pairwise-comparison between the means of groups.
+
+The function `TukeyHD()` takes the fitted ANOVA as an argument.
+
+    rsq_indiv_estimates |> 
+      select(wflow=wflow_id, id, value=.estimate) |> 
+      aov(value ~ wflow, data =_) |>
+      TukeyHSD() 
+
+    ##   Tukey multiple comparisons of means
+    ##     95% family-wise confidence level
+    ## 
+    ## Fit: aov(formula = value ~ wflow, data = select(rsq_indiv_estimates, wflow = wflow_id, id, value = .estimate))
+    ## 
+    ## $wflow
+    ##                                 diff           lwr         upr     p adj
+    ## interact_lm-basic_lm     0.002504868 -0.0383256219 0.043335359 0.9983647
+    ## rand_forest-basic_lm     0.041025236  0.0001947455 0.081855726 0.0485467
+    ## splines_lm-basic_lm      0.009131344 -0.0316991466 0.049961834 0.9306667
+    ## rand_forest-interact_lm  0.038520367 -0.0023101229 0.079350858 0.0703781
+    ## splines_lm-interact_lm   0.006626475 -0.0342040150 0.047456965 0.9716499
+    ## splines_lm-rand_forest  -0.031893892 -0.0727243823 0.008936598 0.1712805
+
+It can be seen from the output, that only the difference between
+`rand_forest` and `basic_lm` is significant with an adjusted `p-value`
+of 0.048.
+
+    # using parwise t-test
+    pairwise.t.test(rsq_indiv_estimates$.estimate, 
+                    rsq_indiv_estimates$wflow_id, 
+                    p.adjust.method = "BH")
+
+    ## 
+    ##  Pairwise comparisons using t tests with pooled SD 
+    ## 
+    ## data:  rsq_indiv_estimates$.estimate and rsq_indiv_estimates$wflow_id 
+    ## 
+    ##             basic_lm interact_lm rand_forest
+    ## interact_lm 0.870    -           -          
+    ## rand_forest 0.047    0.047       -          
+    ## splines_lm  0.798    0.798       0.085      
+    ## 
+    ## P value adjustment method: BH
+
+The result is a table of p-values for the pairwise comparisons. Here,
+the p-values have been adjusted by the Benjamini-Hochberg method.
+
+#### Check for homoscadeasticity
+
+The ANOVA test assumes that, the data are normally distributed and the
+variance across groups are homogeneous. We can check that with some
+diagnostic plots.
+
+    par(mfrow=c(2,2))
+    rsq_indiv_estimates |> 
+      select(wflow=wflow_id, id, value=.estimate) |> 
+      aov(value ~ wflow, data =_) |> 
+      plot()
+
+![](chapter11_comparingModels_files/figure-markdown_strict/unnamed-chunk-13-1.png)
+
+    par(mfrow=c(1,1))
+
 ## SIMPLE HYPOTHESIS TESTING METHODS
 
 <!--
@@ -386,3 +478,240 @@ tests the difference between two of the linear regression models:
     ##   estimate   p.value conf.low conf.high
     ##      <dbl>     <dbl>    <dbl>     <dbl>
     ## 1  0.00913 0.0000256  0.00650    0.0118
+
+We could evaluate each pair-wise difference in this way. Note that the
+p-value indicates a statistically significant signal; the collection of
+spline terms for longitude and latitude do appear to have an effect.
+However, the difference in *R*<sup>2</sup> is estimated at 0.91%. If our
+practical effect size were 2%, we might not consider these terms worth
+including in the model.
+
+> `p-value`: “Informally, it is the probability under a specified
+> statistical model that a statistical summary of the data (e.g., the
+> sample mean difference between two compared groups) would be equal to
+> or more extreme than its observed value.”
+
+## Bayesian Methods
+
+    library(tidyposterior)
+    library(rstanarm)
+
+    ## Loading required package: Rcpp
+
+    ## 
+    ## Attaching package: 'Rcpp'
+
+    ## The following object is masked from 'package:rsample':
+    ## 
+    ##     populate
+
+    ## This is rstanarm version 2.21.3
+
+    ## - See https://mc-stan.org/rstanarm/articles/priors for changes to default priors!
+
+    ## - Default priors may change, so it's safest to specify priors, even if equivalent to the defaults.
+
+    ## - For execution on a local, multicore CPU with excess RAM we recommend calling
+
+    ##   options(mc.cores = parallel::detectCores())
+
+    rsq_anova <- 
+      perf_mod(
+        four_models,
+        metric="rsq",
+        prior_intercept = rstanarm::student_t(df=1),
+        chains=4,
+        seed=1102
+      )
+
+    ## 
+    ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
+    ## Chain 1: 
+    ## Chain 1: Gradient evaluation took 0.000124 seconds
+    ## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 1.24 seconds.
+    ## Chain 1: Adjust your expectations accordingly!
+    ## Chain 1: 
+    ## Chain 1: 
+    ## Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 1: 
+    ## Chain 1:  Elapsed Time: 2.67827 seconds (Warm-up)
+    ## Chain 1:                1.06941 seconds (Sampling)
+    ## Chain 1:                3.74768 seconds (Total)
+    ## Chain 1: 
+    ## 
+    ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
+    ## Chain 2: 
+    ## Chain 2: Gradient evaluation took 5.6e-05 seconds
+    ## Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.56 seconds.
+    ## Chain 2: Adjust your expectations accordingly!
+    ## Chain 2: 
+    ## Chain 2: 
+    ## Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 2: 
+    ## Chain 2:  Elapsed Time: 2.79076 seconds (Warm-up)
+    ## Chain 2:                1.01996 seconds (Sampling)
+    ## Chain 2:                3.81072 seconds (Total)
+    ## Chain 2: 
+    ## 
+    ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
+    ## Chain 3: 
+    ## Chain 3: Gradient evaluation took 3.3e-05 seconds
+    ## Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.33 seconds.
+    ## Chain 3: Adjust your expectations accordingly!
+    ## Chain 3: 
+    ## Chain 3: 
+    ## Chain 3: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 3: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 3: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 3: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 3: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 3: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 3: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 3: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 3: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 3: 
+    ## Chain 3:  Elapsed Time: 2.81135 seconds (Warm-up)
+    ## Chain 3:                0.92386 seconds (Sampling)
+    ## Chain 3:                3.73521 seconds (Total)
+    ## Chain 3: 
+    ## 
+    ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
+    ## Chain 4: 
+    ## Chain 4: Gradient evaluation took 3.2e-05 seconds
+    ## Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.32 seconds.
+    ## Chain 4: Adjust your expectations accordingly!
+    ## Chain 4: 
+    ## Chain 4: 
+    ## Chain 4: Iteration:    1 / 2000 [  0%]  (Warmup)
+    ## Chain 4: Iteration:  200 / 2000 [ 10%]  (Warmup)
+    ## Chain 4: Iteration:  400 / 2000 [ 20%]  (Warmup)
+    ## Chain 4: Iteration:  600 / 2000 [ 30%]  (Warmup)
+    ## Chain 4: Iteration:  800 / 2000 [ 40%]  (Warmup)
+    ## Chain 4: Iteration: 1000 / 2000 [ 50%]  (Warmup)
+    ## Chain 4: Iteration: 1001 / 2000 [ 50%]  (Sampling)
+    ## Chain 4: Iteration: 1200 / 2000 [ 60%]  (Sampling)
+    ## Chain 4: Iteration: 1400 / 2000 [ 70%]  (Sampling)
+    ## Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
+    ## Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
+    ## Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
+    ## Chain 4: 
+    ## Chain 4:  Elapsed Time: 2.59766 seconds (Warm-up)
+    ## Chain 4:                0.785683 seconds (Sampling)
+    ## Chain 4:                3.38335 seconds (Total)
+    ## Chain 4:
+
+    # Take a random sample from the posterior distribution
+    # so set the seed again to be reproducible. 
+    rsq_anova |> 
+      tidy(seed = 1103)
+
+    ## # Posterior samples of performance
+    ## # A tibble: 16,000 × 2
+    ##    model       posterior
+    ##    <chr>           <dbl>
+    ##  1 rand_forest     0.832
+    ##  2 basic_lm        0.792
+    ##  3 interact_lm     0.796
+    ##  4 splines_lm      0.804
+    ##  5 rand_forest     0.833
+    ##  6 basic_lm        0.791
+    ##  7 interact_lm     0.796
+    ##  8 splines_lm      0.802
+    ##  9 rand_forest     0.838
+    ## 10 basic_lm        0.795
+    ## # ℹ 15,990 more rows
+
+    rsq_anova |> 
+      tidy(seed=1103) |> 
+      mutate(model=forcats::fct_inorder(model)) |> 
+      ggplot(aes(x=posterior)) +
+      geom_histogram(bins=50, color="white", fill="blue", alpha=.6) +
+      facet_wrap(~model, ncol=1) +
+      theme_light()
+
+![](chapter11_comparingModels_files/figure-markdown_strict/unnamed-chunk-16-1.png)
+
+These histograms describe the estimated probability distributions of the
+mean *R*<sup>2</sup> value for each model. There is some overlap,
+especially for the three linear models.
+
+    rsq_anova |> 
+      tidy(seed=1103) |> 
+      autoplot() +
+      theme_light()
+
+![](chapter11_comparingModels_files/figure-markdown_strict/unnamed-chunk-17-1.png)
+
+    rsq_anova |> 
+      autoplot() +
+      geom_text_repel(aes(label=workflow), nudge_x=1/8, nudge_y = 1/100) +
+      theme_light()
+
+![](chapter11_comparingModels_files/figure-markdown_strict/unnamed-chunk-17-2.png)
+
+      theme(legend.position = "nonee")
+
+    ## List of 1
+    ##  $ legend.position: chr "nonee"
+    ##  - attr(*, "class")= chr [1:2] "theme" "gg"
+    ##  - attr(*, "complete")= logi FALSE
+    ##  - attr(*, "validate")= logi TRUE
+
+One wonderful aspect of using resampling with Bayesian models is that,
+once we have the posteriors for the parameters, it is trivial to get the
+posterior distributions for combinations of the parameters.
+
+    rsq_diff <- 
+      contrast_models(rsq_anova,
+                      list_1 = "splines_lm",
+                      list_2 = "basic_lm",
+                      seed=1104)
+
+    rsq_diff |> 
+      as_tibble() |> 
+      ggplot(aes(x=difference)) +
+      geom_vline(xintercept = 0, lty=2) +
+      geom_histogram(bins=50, color="white", fill="red", alpha=.6) +
+      theme_light()
+
+![](chapter11_comparingModels_files/figure-markdown_strict/unnamed-chunk-18-1.png)
+
+The `summary()` method for this object computes the mean of the
+distribution as well as credible intervals, the Bayesian analog to
+confidence intervals.
+
+    summary(rsq_diff) |> 
+      select(-starts_with("pract"))
+
+    ## # A tibble: 1 × 6
+    ##   contrast               probability    mean   lower  upper  size
+    ##   <chr>                        <dbl>   <dbl>   <dbl>  <dbl> <dbl>
+    ## 1 splines_lm vs basic_lm           1 0.00914 0.00478 0.0135     0
+
+The `probability` column reflects the proportion of the posterior that
+is greater than zero.
