@@ -29,7 +29,7 @@
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Learn how to get started at https://www.tidymodels.org/start/
+    ## • Use suppressPackageStartupMessages() to eliminate package startup messages
 
     data(ames)
     ames <- mutate(ames, Sale_Price = log10(Sale_Price))
@@ -219,15 +219,15 @@ We’d like to resample each of the models in turn.
 
     ## i 1 of 3 resampling: basic_lm
 
-    ## ✔ 1 of 3 resampling: basic_lm (1.4s)
+    ## ✔ 1 of 3 resampling: basic_lm (1.3s)
 
     ## i 2 of 3 resampling: interact_lm
 
-    ## ✔ 2 of 3 resampling: interact_lm (1.5s)
+    ## ✔ 2 of 3 resampling: interact_lm (1.4s)
 
     ## i 3 of 3 resampling: splines_lm
 
-    ## ✔ 3 of 3 resampling: splines_lm (2.7s)
+    ## ✔ 3 of 3 resampling: splines_lm (2.3s)
 
     lm_models
 
@@ -527,8 +527,8 @@ including in the model.
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
     ## Chain 1: 
-    ## Chain 1: Gradient evaluation took 0.000124 seconds
-    ## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 1.24 seconds.
+    ## Chain 1: Gradient evaluation took 0.000154 seconds
+    ## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 1.54 seconds.
     ## Chain 1: Adjust your expectations accordingly!
     ## Chain 1: 
     ## Chain 1: 
@@ -545,15 +545,15 @@ including in the model.
     ## Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 1: 
-    ## Chain 1:  Elapsed Time: 2.67827 seconds (Warm-up)
-    ## Chain 1:                1.06941 seconds (Sampling)
-    ## Chain 1:                3.74768 seconds (Total)
+    ## Chain 1:  Elapsed Time: 2.4169 seconds (Warm-up)
+    ## Chain 1:                0.96901 seconds (Sampling)
+    ## Chain 1:                3.38591 seconds (Total)
     ## Chain 1: 
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
     ## Chain 2: 
-    ## Chain 2: Gradient evaluation took 5.6e-05 seconds
-    ## Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.56 seconds.
+    ## Chain 2: Gradient evaluation took 3.1e-05 seconds
+    ## Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.31 seconds.
     ## Chain 2: Adjust your expectations accordingly!
     ## Chain 2: 
     ## Chain 2: 
@@ -570,9 +570,9 @@ including in the model.
     ## Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 2: 
-    ## Chain 2:  Elapsed Time: 2.79076 seconds (Warm-up)
-    ## Chain 2:                1.01996 seconds (Sampling)
-    ## Chain 2:                3.81072 seconds (Total)
+    ## Chain 2:  Elapsed Time: 2.10202 seconds (Warm-up)
+    ## Chain 2:                0.92233 seconds (Sampling)
+    ## Chain 2:                3.02435 seconds (Total)
     ## Chain 2: 
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
@@ -595,15 +595,15 @@ including in the model.
     ## Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 3: 
-    ## Chain 3:  Elapsed Time: 2.81135 seconds (Warm-up)
-    ## Chain 3:                0.92386 seconds (Sampling)
-    ## Chain 3:                3.73521 seconds (Total)
+    ## Chain 3:  Elapsed Time: 2.52561 seconds (Warm-up)
+    ## Chain 3:                0.863733 seconds (Sampling)
+    ## Chain 3:                3.38934 seconds (Total)
     ## Chain 3: 
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
     ## Chain 4: 
-    ## Chain 4: Gradient evaluation took 3.2e-05 seconds
-    ## Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.32 seconds.
+    ## Chain 4: Gradient evaluation took 5.9e-05 seconds
+    ## Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.59 seconds.
     ## Chain 4: Adjust your expectations accordingly!
     ## Chain 4: 
     ## Chain 4: 
@@ -620,9 +620,9 @@ including in the model.
     ## Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 4: 
-    ## Chain 4:  Elapsed Time: 2.59766 seconds (Warm-up)
-    ## Chain 4:                0.785683 seconds (Sampling)
-    ## Chain 4:                3.38335 seconds (Total)
+    ## Chain 4:  Elapsed Time: 2.47022 seconds (Warm-up)
+    ## Chain 4:                0.740169 seconds (Sampling)
+    ## Chain 4:                3.21039 seconds (Total)
     ## Chain 4:
 
     # Take a random sample from the posterior distribution
