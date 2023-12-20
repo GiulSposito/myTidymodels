@@ -358,3 +358,26 @@ summary(rsq_diff) |>
 ```
 
 The `probability` column reflects the proportion of the posterior that is greater than zero.
+
+However, the estimate of the mean difference is fairly close to zero. Recall that the practical effect size we suggested previously is 2%. With a posterior distribution, we can also compute the probability of being practically significant. 
+
+In Bayesian analysis, this is a *ROPE* estimate (for Region Of Practical Equivalence). To estimate this, the `size` option to the summary function is used:
+
+```{r}
+summary(rsq_diff, size=0.02) |> 
+  select(contrast, starts_with("pract"))
+```
+
+The `pract_equiv` column is the proportion of the posterior that is within [-`size`, `size`] (the columns `pract_neg` and `pract_pos` are the proportions that are below and above this interval). 
+
+
+The `autoplot()` method can show the `pract_equiv` results that compare each workflow to the current best (the random forest model, in this case).
+
+```{r}
+autoplot(rsq_anova, type="ROPE", size=0.02) +
+  theme_light()
+```
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge`s book [Tidy Modeling with R](https://www.tmwr.org/compare).

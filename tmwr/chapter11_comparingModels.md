@@ -8,6 +8,7 @@
     -   [SIMPLE HYPOTHESIS TESTING
         METHODS](#simple-hypothesis-testing-methods)
     -   [Bayesian Methods](#bayesian-methods)
+-   [Reference](#reference)
 
 # Comparing Models with Resampling
 
@@ -29,7 +30,7 @@
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Use suppressPackageStartupMessages() to eliminate package startup messages
+    ## • Search for functions across packages at https://www.tidymodels.org/find/
 
     data(ames)
     ames <- mutate(ames, Sale_Price = log10(Sale_Price))
@@ -219,15 +220,15 @@ We’d like to resample each of the models in turn.
 
     ## i 1 of 3 resampling: basic_lm
 
-    ## ✔ 1 of 3 resampling: basic_lm (1.3s)
+    ## ✔ 1 of 3 resampling: basic_lm (1.2s)
 
     ## i 2 of 3 resampling: interact_lm
 
-    ## ✔ 2 of 3 resampling: interact_lm (1.4s)
+    ## ✔ 2 of 3 resampling: interact_lm (1.3s)
 
     ## i 3 of 3 resampling: splines_lm
 
-    ## ✔ 3 of 3 resampling: splines_lm (2.3s)
+    ## ✔ 3 of 3 resampling: splines_lm (3s)
 
     lm_models
 
@@ -527,8 +528,8 @@ including in the model.
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 1).
     ## Chain 1: 
-    ## Chain 1: Gradient evaluation took 0.000154 seconds
-    ## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 1.54 seconds.
+    ## Chain 1: Gradient evaluation took 0.000125 seconds
+    ## Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 1.25 seconds.
     ## Chain 1: Adjust your expectations accordingly!
     ## Chain 1: 
     ## Chain 1: 
@@ -545,15 +546,15 @@ including in the model.
     ## Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 1: 
-    ## Chain 1:  Elapsed Time: 2.4169 seconds (Warm-up)
-    ## Chain 1:                0.96901 seconds (Sampling)
-    ## Chain 1:                3.38591 seconds (Total)
+    ## Chain 1:  Elapsed Time: 2.30377 seconds (Warm-up)
+    ## Chain 1:                0.923057 seconds (Sampling)
+    ## Chain 1:                3.22683 seconds (Total)
     ## Chain 1: 
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 2).
     ## Chain 2: 
-    ## Chain 2: Gradient evaluation took 3.1e-05 seconds
-    ## Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.31 seconds.
+    ## Chain 2: Gradient evaluation took 3e-05 seconds
+    ## Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.3 seconds.
     ## Chain 2: Adjust your expectations accordingly!
     ## Chain 2: 
     ## Chain 2: 
@@ -570,15 +571,15 @@ including in the model.
     ## Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 2: 
-    ## Chain 2:  Elapsed Time: 2.10202 seconds (Warm-up)
-    ## Chain 2:                0.92233 seconds (Sampling)
-    ## Chain 2:                3.02435 seconds (Total)
+    ## Chain 2:  Elapsed Time: 2.54195 seconds (Warm-up)
+    ## Chain 2:                0.954434 seconds (Sampling)
+    ## Chain 2:                3.49638 seconds (Total)
     ## Chain 2: 
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 3).
     ## Chain 3: 
-    ## Chain 3: Gradient evaluation took 3.3e-05 seconds
-    ## Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.33 seconds.
+    ## Chain 3: Gradient evaluation took 3e-05 seconds
+    ## Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.3 seconds.
     ## Chain 3: Adjust your expectations accordingly!
     ## Chain 3: 
     ## Chain 3: 
@@ -595,15 +596,15 @@ including in the model.
     ## Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 3: 
-    ## Chain 3:  Elapsed Time: 2.52561 seconds (Warm-up)
-    ## Chain 3:                0.863733 seconds (Sampling)
-    ## Chain 3:                3.38934 seconds (Total)
+    ## Chain 3:  Elapsed Time: 2.55205 seconds (Warm-up)
+    ## Chain 3:                0.882263 seconds (Sampling)
+    ## Chain 3:                3.43431 seconds (Total)
     ## Chain 3: 
     ## 
     ## SAMPLING FOR MODEL 'continuous' NOW (CHAIN 4).
     ## Chain 4: 
-    ## Chain 4: Gradient evaluation took 5.9e-05 seconds
-    ## Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.59 seconds.
+    ## Chain 4: Gradient evaluation took 3.7e-05 seconds
+    ## Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.37 seconds.
     ## Chain 4: Adjust your expectations accordingly!
     ## Chain 4: 
     ## Chain 4: 
@@ -620,9 +621,9 @@ including in the model.
     ## Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
     ## Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
     ## Chain 4: 
-    ## Chain 4:  Elapsed Time: 2.47022 seconds (Warm-up)
-    ## Chain 4:                0.740169 seconds (Sampling)
-    ## Chain 4:                3.21039 seconds (Total)
+    ## Chain 4:  Elapsed Time: 2.55371 seconds (Warm-up)
+    ## Chain 4:                0.726509 seconds (Sampling)
+    ## Chain 4:                3.28022 seconds (Total)
     ## Chain 4:
 
     # Take a random sample from the posterior distribution
@@ -715,3 +716,38 @@ confidence intervals.
 
 The `probability` column reflects the proportion of the posterior that
 is greater than zero.
+
+However, the estimate of the mean difference is fairly close to zero.
+Recall that the practical effect size we suggested previously is 2%.
+With a posterior distribution, we can also compute the probability of
+being practically significant.
+
+In Bayesian analysis, this is a *ROPE* estimate (for Region Of Practical
+Equivalence). To estimate this, the `size` option to the summary
+function is used:
+
+    summary(rsq_diff, size=0.02) |> 
+      select(contrast, starts_with("pract"))
+
+    ## # A tibble: 1 × 4
+    ##   contrast               pract_neg pract_equiv pract_pos
+    ##   <chr>                      <dbl>       <dbl>     <dbl>
+    ## 1 splines_lm vs basic_lm         0           1         0
+
+The `pract_equiv` column is the proportion of the posterior that is
+within \[-`size`, `size`\] (the columns `pract_neg` and `pract_pos` are
+the proportions that are below and above this interval).
+
+The `autoplot()` method can show the `pract_equiv` results that compare
+each workflow to the current best (the random forest model, in this
+case).
+
+    autoplot(rsq_anova, type="ROPE", size=0.02) +
+      theme_light()
+
+![](chapter11_comparingModels_files/figure-markdown_strict/unnamed-chunk-21-1.png)
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge\`s book [Tidy
+Modeling with R](https://www.tmwr.org/compare).

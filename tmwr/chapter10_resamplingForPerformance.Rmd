@@ -359,4 +359,6 @@ lm_res |>
 
 ```
 
+# Reference
 
+All code and text came from Max Kuhn and Julia Silge`s book [Tidy Modeling with R](https://www.tmwr.org/resampling).

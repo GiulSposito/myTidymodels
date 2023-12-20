@@ -4,6 +4,7 @@
         -   [ROC e AUC](#roc-e-auc)
     -   [MULTICLASS CLASSIFICATION
         METRICS](#multiclass-classification-metrics)
+-   [Reference](#reference)
 
 # Model Evaluation - Basics
 
@@ -12,23 +13,23 @@ packages with the focus of measuring model performance.
 
     library(tidymodels)
 
-    ## ── Attaching packages ────────────────────────────────────── tidymodels 1.0.0 ──
+    ## ── Attaching packages ────────────────────────────────────── tidymodels 1.1.1 ──
 
-    ## ✔ broom        1.0.5     ✔ recipes      1.0.6
-    ## ✔ dials        1.1.0     ✔ rsample      1.1.1
+    ## ✔ broom        1.0.5     ✔ recipes      1.0.9
+    ## ✔ dials        1.2.0     ✔ rsample      1.2.0
     ## ✔ dplyr        1.1.3     ✔ tibble       3.2.1
-    ## ✔ ggplot2      3.4.0     ✔ tidyr        1.3.0
-    ## ✔ infer        1.0.4     ✔ tune         1.1.1
-    ## ✔ modeldata    1.0.1     ✔ workflows    1.1.2
-    ## ✔ parsnip      1.1.0     ✔ workflowsets 1.0.0
-    ## ✔ purrr        1.0.2     ✔ yardstick    1.1.0
+    ## ✔ ggplot2      3.4.4     ✔ tidyr        1.3.0
+    ## ✔ infer        1.0.4     ✔ tune         1.1.2
+    ## ✔ modeldata    1.2.0     ✔ workflows    1.1.3
+    ## ✔ parsnip      1.1.1     ✔ workflowsets 1.0.1
+    ## ✔ purrr        1.0.2     ✔ yardstick    1.2.0
 
     ## ── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
     ## ✖ purrr::discard() masks scales::discard()
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Use suppressPackageStartupMessages() to eliminate package startup messages
+    ## • Search for functions across packages at https://www.tidymodels.org/find/
 
     data(ames)
     ames <- mutate(ames, Sale_Price = log10(Sale_Price))
@@ -222,18 +223,6 @@ computes the data points that make up the ROC curve and `roc_auc()`
 computes the area under the curve.
 
     two_class_curve <- roc_curve(two_class_example, truth, Class1)
-
-    ## Warning: Returning more (or less) than 1 row per `summarise()` group was deprecated in
-    ## dplyr 1.1.0.
-    ## ℹ Please use `reframe()` instead.
-    ## ℹ When switching from `summarise()` to `reframe()`, remember that `reframe()`
-    ##   always returns an ungrouped data frame and adjust accordingly.
-    ## ℹ The deprecated feature was likely used in the yardstick package.
-    ##   Please report the issue at <https://github.com/tidymodels/yardstick/issues>.
-    ## This warning is displayed once every 8 hours.
-    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-    ## generated.
-
     two_class_curve
 
     ## # A tibble: 502 × 3
@@ -475,3 +464,8 @@ The groupings also translate to the autoplot() methods.
       autoplot()
 
 ![](chapter9_eval_basics_files/figure-markdown_strict/unnamed-chunk-18-1.png)
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge\`s book [Tidy
+Modeling with R](https://www.tmwr.org/performance).

@@ -5,6 +5,7 @@
         -   [Repeated Cross-Validation](#repeated-cross-validation)
     -   [Estimating Performance](#estimating-performance)
 -   [Saving the Resampled Objects](#saving-the-resampled-objects)
+-   [Reference](#reference)
 
 # Performance
 
@@ -725,3 +726,8 @@ calculating a conf range from coefs…
       labs(title="Liner Regression Coeficients")
 
 ![](chapter10_resamplingForPerformance_files/figure-markdown_strict/unnamed-chunk-19-1.png)
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge\`s book [Tidy
+Modeling with R](https://www.tmwr.org/resampling).
