@@ -36,7 +36,7 @@ with two predictors, two classes, and a training set of 593 data points.
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Use tidymodels_prefer() to resolve common conflicts.
+    ## • Search for functions across packages at https://www.tidymodels.org/find/
 
     tidymodels_prefer()
 
@@ -51,16 +51,16 @@ with two predictors, two classes, and a training set of 593 data points.
     ## # A tibble: 593 × 3
     ##        A     B Class 
     ##    <dbl> <dbl> <fct> 
-    ##  1 1.90  1.75  Class1
-    ##  2 1.97  2.40  Class2
-    ##  3 1.40  1.16  Class1
-    ##  4 1.71  0.954 Class1
-    ##  5 3.31  2.41  Class2
-    ##  6 0.722 0.545 Class1
-    ##  7 2.88  1.97  Class2
-    ##  8 1.69  1.99  Class2
-    ##  9 2.07  1.65  Class1
-    ## 10 2.53  1.77  Class1
+    ##  1 1.01  0.699 Class1
+    ##  2 3.92  2.73  Class2
+    ##  3 1.13  0.799 Class1
+    ##  4 1.34  0.940 Class1
+    ##  5 3.82  2.16  Class2
+    ##  6 1.18  1.62  Class2
+    ##  7 2.24  1.63  Class2
+    ##  8 1.61  1.71  Class2
+    ##  9 0.606 0.371 Class1
+    ## 10 3.64  1.41  Class1
     ## # ℹ 583 more rows
 
     training_set |> 
@@ -93,9 +93,9 @@ set (using `broom::glance()`):
     ## # A tibble: 3 × 2
     ##   logLik link     
     ##    <dbl> <chr>    
-    ## 1  -241. logit    
-    ## 2  -242. probit   
-    ## 3  -249. c-log-log
+    ## 1  -265. logit    
+    ## 2  -268. probit   
+    ## 3  -279. c-log-log
 
 According to these results, the logistic model has the best statistical
 properties.
@@ -135,21 +135,17 @@ log-likelihood
         .groups = "drop"
       )
 
-    ## → A | warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
-
-    ## There were issues with some computations   A: x1There were issues with some computations   A: x2There were issues with some computations   A: x4There were issues with some computations   A: x6There were issues with some computations   A: x7There were issues with some computations   A: x8There were issues with some computations   A: x9There were issues with some computations   A: x10There were issues with some computations   A: x12There were issues with some computations   A: x13There were issues with some computations   A: x14There were issues with some computations   A: x15There were issues with some computations   A: x16There were issues with some computations   A: x18There were issues with some computations   A: x19There were issues with some computations   A: x20
-
     resampled_res
 
     ## # A tibble: 6 × 4
     ##   model     .metric       mean std_err
     ##   <chr>     <chr>        <dbl>   <dbl>
-    ## 1 c-log-log mn_log_loss -0.427 0.00820
-    ## 2 c-log-log roc_auc      0.893 0.00437
-    ## 3 logistic  mn_log_loss -0.412 0.00808
-    ## 4 logistic  roc_auc      0.893 0.00440
-    ## 5 probit    mn_log_loss -0.415 0.00817
-    ## 6 probit    roc_auc      0.892 0.00440
+    ## 1 c-log-log mn_log_loss -0.483 0.00905
+    ## 2 c-log-log roc_auc      0.875 0.00421
+    ## 3 logistic  mn_log_loss -0.452 0.00705
+    ## 4 logistic  roc_auc      0.875 0.00423
+    ## 5 probit    mn_log_loss -0.458 0.00706
+    ## 6 probit    roc_auc      0.875 0.00421
 
     resampled_res |> 
       filter(.metric=="mn_log_loss") |> 
@@ -214,9 +210,9 @@ any of these options could be used.
     ## # A tibble: 3 × 4
     ##   wflow_id      intercept      a     b
     ##   <chr>             <dbl>  <dbl> <dbl>
-    ## 1 model_logit       -3.99 -1.28   4.06
-    ## 2 model_probit      -2.29 -0.696  2.28
-    ## 3 model_cloglog     -2.90 -0.866  2.54
+    ## 1 model_logit       -3.48 -1.34   3.75
+    ## 2 model_probit      -1.98 -0.719  2.07
+    ## 3 model_cloglog     -2.47 -0.745  2.10
 
     training_set |> 
       ggplot(aes(x=A, y=B, color=Class, shape=Class)) +
@@ -228,17 +224,12 @@ any of these options could be used.
 
 ![](chapter12_tuning_files/figure-markdown_strict/unnamed-chunk-5-1.png)
 
-Remembering Sigmoid Function $$
+Remembering Sigmoid Function
 
-h\_{} = g(z)
-
-z = \_0 + \_1x\_1+\_2x\_2
-
-\_0 + \_1x\_1+\_2x\_2
-
-x\_2 \_0/\_2 + \_1/\_2x\_1
-
-$$
+*h*<sub>*θ*</sub> = *g*(*z*)
+*z* = *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub>
+*θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub> ≥ 0
+*x*<sub>2</sub> ≥ −*θ*<sub>0</sub>/*θ*<sub>2</sub> + −*θ*<sub>1</sub>/*θ*<sub>2</sub>*x*<sub>1</sub>
 
 # Reference
 
