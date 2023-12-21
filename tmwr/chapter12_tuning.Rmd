@@ -154,12 +154,16 @@ training_set |>
   theme(legend.position = "top") 
 ```
 
-Remembering Sigmoid Function
+> Remembering Sigmoid Function
+> 
+> $$h_{\theta}=g(z)$$
+> 
+> $$z=\theta_0+\theta_1x_1+\theta_2x_2$$
+> 
+> $$\theta_0+\theta_1x_1+\theta_2x_2\ge0$$
+> 
+> $$x_2\ge{-\theta_0}/\theta_2+{-\theta_1}/\theta_2x_1$$
 
-$$h_{\theta}=g(z)$$
-$$z=\theta_0+\theta_1x_1+\theta_2x_2$$
-$$\theta_0+\theta_1x_1+\theta_2x_2\ge0$$
-$$x_2\ge{-\theta_0}/\theta_2+{-\theta_1}/\theta_2x_1$$
 
 # Reference
 

@@ -36,7 +36,7 @@ with two predictors, two classes, and a training set of 593 data points.
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Search for functions across packages at https://www.tidymodels.org/find/
+    ## • Use tidymodels_prefer() to resolve common conflicts.
 
     tidymodels_prefer()
 
@@ -51,16 +51,16 @@ with two predictors, two classes, and a training set of 593 data points.
     ## # A tibble: 593 × 3
     ##        A     B Class 
     ##    <dbl> <dbl> <fct> 
-    ##  1 1.01  0.699 Class1
-    ##  2 3.92  2.73  Class2
-    ##  3 1.13  0.799 Class1
-    ##  4 1.34  0.940 Class1
-    ##  5 3.82  2.16  Class2
-    ##  6 1.18  1.62  Class2
-    ##  7 2.24  1.63  Class2
-    ##  8 1.61  1.71  Class2
-    ##  9 0.606 0.371 Class1
-    ## 10 3.64  1.41  Class1
+    ##  1 1.85  2.28  Class2
+    ##  2 3.43  2.81  Class2
+    ##  3 2.30  1.65  Class2
+    ##  4 1.20  1.51  Class2
+    ##  5 0.656 0.699 Class1
+    ##  6 1.12  0.813 Class1
+    ##  7 3.91  3.04  Class1
+    ##  8 1.31  0.785 Class1
+    ##  9 3.02  2.47  Class1
+    ## 10 0.961 0.964 Class1
     ## # ℹ 583 more rows
 
     training_set |> 
@@ -93,9 +93,9 @@ set (using `broom::glance()`):
     ## # A tibble: 3 × 2
     ##   logLik link     
     ##    <dbl> <chr>    
-    ## 1  -265. logit    
-    ## 2  -268. probit   
-    ## 3  -279. c-log-log
+    ## 1  -243. logit    
+    ## 2  -248. probit   
+    ## 3  -258. c-log-log
 
 According to these results, the logistic model has the best statistical
 properties.
@@ -135,17 +135,21 @@ log-likelihood
         .groups = "drop"
       )
 
+    ## → A | warning: glm.fit: fitted probabilities numerically 0 or 1 occurred
+
+    ## There were issues with some computations   A: x1There were issues with some computations   A: x2There were issues with some computations   A: x3There were issues with some computations   A: x4There were issues with some computations   A: x5There were issues with some computations   A: x6There were issues with some computations   A: x7There were issues with some computations   A: x8There were issues with some computations   A: x8
+
     resampled_res
 
     ## # A tibble: 6 × 4
     ##   model     .metric       mean std_err
     ##   <chr>     <chr>        <dbl>   <dbl>
-    ## 1 c-log-log mn_log_loss -0.483 0.00905
-    ## 2 c-log-log roc_auc      0.875 0.00421
-    ## 3 logistic  mn_log_loss -0.452 0.00705
-    ## 4 logistic  roc_auc      0.875 0.00423
-    ## 5 probit    mn_log_loss -0.458 0.00706
-    ## 6 probit    roc_auc      0.875 0.00421
+    ## 1 c-log-log mn_log_loss -0.454 0.0122 
+    ## 2 c-log-log roc_auc      0.894 0.00452
+    ## 3 logistic  mn_log_loss -0.416 0.00855
+    ## 4 logistic  roc_auc      0.893 0.00453
+    ## 5 probit    mn_log_loss -0.426 0.00870
+    ## 6 probit    roc_auc      0.893 0.00452
 
     resampled_res |> 
       filter(.metric=="mn_log_loss") |> 
@@ -210,9 +214,9 @@ any of these options could be used.
     ## # A tibble: 3 × 4
     ##   wflow_id      intercept      a     b
     ##   <chr>             <dbl>  <dbl> <dbl>
-    ## 1 model_logit       -3.48 -1.34   3.75
-    ## 2 model_probit      -1.98 -0.719  2.07
-    ## 3 model_cloglog     -2.47 -0.745  2.10
+    ## 1 model_logit       -4.04 -1.27   3.98
+    ## 2 model_probit      -2.24 -0.630  2.11
+    ## 3 model_cloglog     -2.78 -0.710  2.22
 
     training_set |> 
       ggplot(aes(x=A, y=B, color=Class, shape=Class)) +
@@ -224,12 +228,15 @@ any of these options could be used.
 
 ![](chapter12_tuning_files/figure-markdown_strict/unnamed-chunk-5-1.png)
 
-Remembering Sigmoid Function
-
-*h*<sub>*θ*</sub> = *g*(*z*)
-*z* = *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub>
-*θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub> ≥ 0
-*x*<sub>2</sub> ≥ −*θ*<sub>0</sub>/*θ*<sub>2</sub> + −*θ*<sub>1</sub>/*θ*<sub>2</sub>*x*<sub>1</sub>
+> Remembering Sigmoid Function
+>
+> *h*<sub>*θ*</sub> = *g*(*z*)
+>
+> *z* = *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub>
+>
+> *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub> ≥ 0
+>
+> *x*<sub>2</sub> ≥ −*θ*<sub>0</sub>/*θ*<sub>2</sub> + −*θ*<sub>1</sub>/*θ*<sub>2</sub>*x*<sub>1</sub>
 
 # Reference
 
