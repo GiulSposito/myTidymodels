@@ -163,6 +163,8 @@ training_set |>
 > $$\theta_0+\theta_1x_1+\theta_2x_2\ge0$$
 > 
 > $$x_2\ge{-\theta_0}/\theta_2+{-\theta_1}/\theta_2x_1$$
+>
+> used in the line: `geom_abline` where the equation correspond to $x_2={{-int}/b}+{{-a}/b}x_1$
 
 
 # Reference
