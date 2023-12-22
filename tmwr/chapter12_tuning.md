@@ -1,5 +1,9 @@
 -   [Model Tuning](#model-tuning)
     -   [What do we optimize?](#what-do-we-optimize)
+    -   [TWO GENERAL STRATEGIES FOR
+        OPTIMIZATION](#two-general-strategies-for-optimization)
+    -   [TUNING PARAMETERS IN
+        TIDYMODELS](#tuning-parameters-in-tidymodels)
 -   [Reference](#reference)
 
 # Model Tuning
@@ -36,7 +40,7 @@ with two predictors, two classes, and a training set of 593 data points.
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Dig deeper into tidy modeling with R at https://www.tmwr.org
+    ## • Learn how to get started at https://www.tidymodels.org/start/
 
     tidymodels_prefer()
 
@@ -51,16 +55,16 @@ with two predictors, two classes, and a training set of 593 data points.
     ## # A tibble: 593 × 3
     ##        A     B Class 
     ##    <dbl> <dbl> <fct> 
-    ##  1  1.05 1.53  Class2
-    ##  2  1.92 1.83  Class1
-    ##  3  3.24 1.97  Class1
-    ##  4  2.80 2.53  Class2
-    ##  5  1.47 0.863 Class1
-    ##  6  1.42 1.60  Class2
-    ##  7  2.80 1.63  Class1
-    ##  8  1.44 0.574 Class1
-    ##  9  1.52 1.24  Class1
-    ## 10  3.89 3.68  Class2
+    ##  1  1.72 0.996 Class1
+    ##  2  3.40 1.47  Class1
+    ##  3  2.84 2.54  Class1
+    ##  4  2.48 1.97  Class2
+    ##  5  1.78 0.777 Class1
+    ##  6  1.80 0.633 Class1
+    ##  7  2.04 1.95  Class2
+    ##  8  1.44 0.740 Class1
+    ##  9  1.08 1.03  Class1
+    ## 10  1.52 0.250 Class2
     ## # ℹ 583 more rows
 
     training_set |> 
@@ -93,9 +97,9 @@ set (using `broom::glance()`):
     ## # A tibble: 3 × 2
     ##   logLik link     
     ##    <dbl> <chr>    
-    ## 1  -251. logit    
-    ## 2  -254. probit   
-    ## 3  -264. c-log-log
+    ## 1  -249. logit    
+    ## 2  -253. probit   
+    ## 3  -266. c-log-log
 
 According to these results, the logistic model has the best statistical
 properties.
@@ -144,12 +148,12 @@ log-likelihood
     ## # A tibble: 6 × 4
     ##   model     .metric       mean std_err
     ##   <chr>     <chr>        <dbl>   <dbl>
-    ## 1 c-log-log mn_log_loss -0.460 0.0101 
-    ## 2 c-log-log roc_auc      0.886 0.00443
-    ## 3 logistic  mn_log_loss -0.430 0.00788
-    ## 4 logistic  roc_auc      0.886 0.00444
-    ## 5 probit    mn_log_loss -0.436 0.00787
-    ## 6 probit    roc_auc      0.885 0.00444
+    ## 1 c-log-log mn_log_loss -0.464 0.0109 
+    ## 2 c-log-log roc_auc      0.889 0.00464
+    ## 3 logistic  mn_log_loss -0.426 0.00849
+    ## 4 logistic  roc_auc      0.889 0.00460
+    ## 5 probit    mn_log_loss -0.433 0.00863
+    ## 6 probit    roc_auc      0.889 0.00459
 
     resampled_res |> 
       filter(.metric=="mn_log_loss") |> 
@@ -183,6 +187,19 @@ curve for each resample
 Given the overlap of the intervals, as well as the scale of the x-axis,
 any of these options could be used.
 
+> Remembering Sigmoid Function
+>
+> *h*<sub>*θ*</sub> = *g*(*z*)
+>
+> *z* = *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub>
+>
+> *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub> ≥ 0
+>
+> *x*<sub>2</sub> ≥ −*θ*<sub>0</sub>/*θ*<sub>2</sub> + −*θ*<sub>1</sub>/*θ*<sub>2</sub>*x*<sub>1</sub>
+>
+> used in the line: `geom_abline` where the equation correspond to
+> *x*<sub>2</sub> =  − *i**n**t**e**r**c**e**p**t*/*b* − *a*/*b**x*<sub>1</sub>
+
     glm_models <- list(
       logit  = logistic_reg() |> set_engine("glm"),
       probit = logistic_reg() |> set_engine("glm", family=binomial(link="probit")),
@@ -214,9 +231,9 @@ any of these options could be used.
     ## # A tibble: 3 × 4
     ##   wflow_id      intercept      a     b
     ##   <chr>             <dbl>  <dbl> <dbl>
-    ## 1 model_logit       -3.95 -1.11   3.71
-    ## 2 model_probit      -2.23 -0.562  2.02
-    ## 3 model_cloglog     -2.78 -0.630  2.12
+    ## 1 model_logit       -4.04 -1.07   3.79
+    ## 2 model_probit      -2.26 -0.556  2.06
+    ## 3 model_cloglog     -2.68 -0.584  2.04
 
     training_set |> 
       ggplot(aes(x=A, y=B, color=Class, shape=Class)) +
@@ -228,18 +245,217 @@ any of these options could be used.
 
 ![](chapter12_tuning_files/figure-markdown_strict/unnamed-chunk-5-1.png)
 
-> Remembering Sigmoid Function
->
-> *h*<sub>*θ*</sub> = *g*(*z*)
->
-> *z* = *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub>
->
-> *θ*<sub>0</sub> + *θ*<sub>1</sub>*x*<sub>1</sub> + *θ*<sub>2</sub>*x*<sub>2</sub> ≥ 0
->
-> *x*<sub>2</sub> ≥ −*θ*<sub>0</sub>/*θ*<sub>2</sub> + −*θ*<sub>1</sub>/*θ*<sub>2</sub>*x*<sub>1</sub>
->
-> used in the line: `geom_abline` where the equation correspond to
-> *x*<sub>2</sub> = −*i**n**t*/*b* + −*a*/*b**x*<sub>1</sub>
+> This exercise emphasizes that different metrics might lead to
+> different decisions about the choice of tuning parameter values. In
+> this case, one metric indicates the models are somewhat different
+> while another metric shows no difference at all.
+
+## TWO GENERAL STRATEGIES FOR OPTIMIZATION
+
+Tuning parameter optimization usually falls into one of two categories:
+grid search and iterative search.
+
+1.  *Grid search* is when we predefine a set of parameter values to
+    evaluate. The main choices involved in grid search are how to make
+    the grid and how many parameter combinations to evaluate.
+2.  *Iterative search* or sequential search is when we sequentially
+    discover new parameter combinations based on previous results.
+    Almost any nonlinear optimization method is appropriate, although
+    some are more efficient than others.
+
+> Hybrid strategies are also an option and can work well. After an
+> initial grid search, a sequential optimization can start from the best
+> grid combination.
+
+## TUNING PARAMETERS IN TIDYMODELS
+
+We’ve already dealt with quite a number of arguments that correspond to
+tuning parameters for recipe and model specifications in previous
+chapters. It is possible to tune:
+
+-   *the threshold for combining neighborhoods* into an “other” category
+    (with argument name threshold) discussed in Section 8.4.1
+
+-   *the number of degrees of freedom* in a natural spline (deg\_free,
+    Section 8.4.3)
+
+-   *the number of data points* required to execute a split in a
+    tree-based model (min\_n, Section 6.1)
+
+-   *the amount of regularization* in penalized models (penalty, Section
+    6.1)
+
+For `parsnip` model specifications, there are two kinds of parameter
+arguments. *Main arguments* are those that are most often optimized for
+performance and are available in multiple engines. A secondary set of
+tuning parameters are *engine specific*. These are either infrequently
+optimized or are specific only to certain engines.
+
+> The main arguments use a harmonized naming system to remove
+> inconsistencies across engines while engine-specific arguments do not.
+
+How can we signal to tidymodels functions which arguments should be
+optimized? Parameters are marked for tuning by assigning them a value of
+`tune()`.
+
+    # example of tunning sinalization
+    neural_net_spec <-
+      mlp(hidden_units = tune()) |> 
+      set_mode("regression") |> 
+      set_engine("keras")
+
+    # tune doesn`t execute any particular parameter value, it only returns an expressions
+    tune()
+
+    ## tune()
+
+    # we can check the tunning parameters for an object
+    extract_parameter_set_dials(neural_net_spec)
+
+    ## Collection of 1 parameters for tuning
+    ## 
+    ##    identifier         type    object
+    ##  hidden_units hidden_units nparam[+]
+
+How can we signal to tidymodels functions which arguments should be
+optimized? Parameters are marked for tuning by assigning them a value of
+`tune()`. If we want to tune the two spline functions to potentially
+have different levels of smoothness, we call `step_ns()` twice, once for
+each predictor. To make the parameters identifiable, the identification
+argument can take any character string:
+
+    data(ames)
+    ames <- mutate(ames, Sale_Price = log10(Sale_Price))
+
+    set.seed(502)
+    ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+    ames_train <- training(ames_split)
+    ames_test  <-  testing(ames_split)
+
+    set.seed(1001)
+    ames_folds <- vfold_cv(ames_train, v = 10)
+
+
+    ames_rec <- 
+      recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type +
+               Latitude + Longitude, data = ames_train) |> 
+      step_log(Gr_Liv_Area, base=10) |> 
+      step_other(Neighborhood, threshold = tune()) |> 
+      step_dummy(all_nominal_predictors()) |> 
+      step_interact(~ Gr_Liv_Area:starts_with("Bldg_Type_")) |> 
+      step_ns(Longitude, deg_free = tune("longitude df")) |> 
+      step_ns(Latitude, deg_free= tune("latitude df"))
+
+    ames_rec
+
+    ## 
+
+    ## ── Recipe ──────────────────────────────────────────────────────────────────────
+
+    ## 
+
+    ## ── Inputs
+
+    ## Number of variables by role
+
+    ## outcome:   1
+    ## predictor: 6
+
+    ## 
+
+    ## ── Operations
+
+    ## • Log transformation on: Gr_Liv_Area
+
+    ## • Collapsing factor levels for: Neighborhood
+
+    ## • Dummy variables from: all_nominal_predictors()
+
+    ## • Interactions with: Gr_Liv_Area:starts_with("Bldg_Type_")
+
+    ## • Natural splines on: Longitude
+
+    ## • Natural splines on: Latitude
+
+    extract_parameter_set_dials(ames_rec)
+
+    ## Collection of 3 parameters for tuning
+    ## 
+    ##    identifier      type    object
+    ##     threshold threshold nparam[+]
+    ##  longitude df  deg_free nparam[+]
+    ##   latitude df  deg_free nparam[+]
+
+When a recipe and model specification are combined using a workflow,
+both sets of parameters are shown:
+
+    wflow_param <- 
+      workflow() |> 
+      add_recipe(ames_rec) |> 
+      add_model(neural_net_spec) |> 
+      extract_parameter_set_dials()
+
+    wflow_param
+
+    ## Collection of 4 parameters for tuning
+    ## 
+    ##    identifier         type    object
+    ##  hidden_units hidden_units nparam[+]
+    ##     threshold    threshold nparam[+]
+    ##  longitude df     deg_free nparam[+]
+    ##   latitude df     deg_free nparam[+]
+
+Each tuning parameter argument has a corresponding function in the
+`dials` package. In the vast majority of the cases, the function has the
+same name as the parameter argument:
+
+    dials::hidden_units()
+
+    ## # Hidden Units (quantitative)
+    ## Range: [1, 10]
+
+    dials::threshold()
+
+    ## Threshold (quantitative)
+    ## Range: [0, 1]
+
+The deg\_free parameter is a counterexample; the notion of degrees of
+freedom comes up in a variety of different contexts. When used with
+splines, there is a specialized dials function called spline\_degree()
+that is, by default, invoked for splines:
+
+    dials::spline_degree()
+
+    ## Spline Degrees of Freedom (quantitative)
+    ## Range: [1, 10]
+
+The dials package also has a convenience function for extracting a
+particular parameter object, and, Inside the parameter set, the range of
+the parameters can also be updated in place:
+
+    wflow_param |> extract_parameter_dials("threshold")
+
+    ## Threshold (quantitative)
+    ## Range: [0, 0.1]
+
+    extract_parameter_set_dials(ames_rec) |> 
+      update(threshold=threshold(c(0.8,1.0)))
+
+    ## Collection of 3 parameters for tuning
+    ## 
+    ##    identifier      type    object
+    ##     threshold threshold nparam[+]
+    ##  longitude df  deg_free nparam[+]
+    ##   latitude df  deg_free nparam[+]
+
+The \*\*p\*arameter\*\* sets created by `extract_parameter_set_dials()`
+are consumed by the tidymodels tuning functions (when needed). If the
+defaults for the tuning parameter objects require modification, a
+modified parameter set is passed to the appropriate tuning function.
+
+> Some tuning parameters depend on the dimensions of the data. For
+> example, the number of nearest neighbors must be between one and the
+> number of rows in the data.
 
 # Reference
 

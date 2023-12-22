@@ -122,6 +122,18 @@ resampled_res |>
 
 Given the overlap of the intervals, as well as the scale of the x-axis, any of these options could be used.
 
+> Remembering Sigmoid Function
+> 
+> $$h_{\theta}=g(z)$$
+> 
+> $$z=\theta_0+\theta_1x_1+\theta_2x_2$$
+> 
+> $$\theta_0+\theta_1x_1+\theta_2x_2\ge0$$
+> 
+> $$x_2\ge{-\theta_0}/\theta_2+{-\theta_1}/\theta_2x_1$$
+>
+> used in the line: `geom_abline` where the equation correspond to $x_2=-intercept/b-a/bx_1$
+
 ```{r}
 
 glm_models <- list(
@@ -154,17 +166,118 @@ training_set |>
   theme(legend.position = "top") 
 ```
 
-> Remembering Sigmoid Function
-> 
-> $$h_{\theta}=g(z)$$
-> 
-> $$z=\theta_0+\theta_1x_1+\theta_2x_2$$
-> 
-> $$\theta_0+\theta_1x_1+\theta_2x_2\ge0$$
-> 
-> $$x_2\ge{-\theta_0}/\theta_2+{-\theta_1}/\theta_2x_1$$
->
-> used in the line: `geom_abline` where the equation correspond to $x_2={{-int}/b}+{{-a}/b}x_1$
+
+> This exercise emphasizes that different metrics might lead to different decisions about the choice of tuning parameter values. In this case, one metric indicates the models are somewhat different while another metric shows no difference at all.
+
+## TWO GENERAL STRATEGIES FOR OPTIMIZATION
+
+Tuning parameter optimization usually falls into one of two categories: grid search and iterative search.
+
+1. *Grid search* is when we predefine a set of parameter values to evaluate. The main choices involved in grid search are how to make the grid and how many parameter combinations to evaluate. 
+1. *Iterative search* or sequential search is when we sequentially discover new parameter combinations based on previous results. Almost any nonlinear optimization method is appropriate, although some are more efficient than others.
+
+> Hybrid strategies are also an option and can work well. After an initial grid search, a sequential optimization can start from the best grid combination.
+
+## TUNING PARAMETERS IN TIDYMODELS
+
+We’ve already dealt with quite a number of arguments that correspond to tuning parameters for recipe and model specifications in previous chapters. It is possible to tune:
+
++ *the threshold for combining neighborhoods* into an “other” category (with argument name threshold) discussed in Section 8.4.1
+
++ *the number of degrees of freedom* in a natural spline (deg_free, Section 8.4.3)
+
++ *the number of data points* required to execute a split in a tree-based model (min_n, Section 6.1)
+
++ *the amount of regularization* in penalized models (penalty, Section 6.1) 
+
+For `parsnip` model specifications, there are two kinds of parameter arguments. *Main arguments* are those that are most often optimized for performance and are available in multiple engines. A secondary set of tuning parameters are *engine specific*. These are either infrequently optimized or are specific only to certain engines. 
+
+> The main arguments use a harmonized naming system to remove inconsistencies across engines while engine-specific arguments do not.
+
+How can we signal to tidymodels functions which arguments should be optimized? Parameters are marked for tuning by assigning them a value of `tune()`. 
+
+```{r}
+# example of tunning sinalization
+neural_net_spec <-
+  mlp(hidden_units = tune()) |> 
+  set_mode("regression") |> 
+  set_engine("keras")
+
+# tune doesn`t execute any particular parameter value, it only returns an expressions
+tune()
+
+# we can check the tunning parameters for an object
+extract_parameter_set_dials(neural_net_spec)
+```
+
+How can we signal to tidymodels functions which arguments should be optimized? Parameters are marked for tuning by assigning them a value of `tune()`. If we want to tune the two spline functions to potentially have different levels of smoothness, we call `step_ns()` twice, once for each predictor. To make the parameters identifiable, the identification argument can take any character string:
+
+```{r}
+data(ames)
+ames <- mutate(ames, Sale_Price = log10(Sale_Price))
+
+set.seed(502)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+set.seed(1001)
+ames_folds <- vfold_cv(ames_train, v = 10)
+
+
+ames_rec <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type +
+           Latitude + Longitude, data = ames_train) |> 
+  step_log(Gr_Liv_Area, base=10) |> 
+  step_other(Neighborhood, threshold = tune()) |> 
+  step_dummy(all_nominal_predictors()) |> 
+  step_interact(~ Gr_Liv_Area:starts_with("Bldg_Type_")) |> 
+  step_ns(Longitude, deg_free = tune("longitude df")) |> 
+  step_ns(Latitude, deg_free= tune("latitude df"))
+
+ames_rec
+extract_parameter_set_dials(ames_rec)
+
+```
+
+When a recipe and model specification are combined using a workflow, both sets of parameters are shown:
+
+```{r}
+wflow_param <- 
+  workflow() |> 
+  add_recipe(ames_rec) |> 
+  add_model(neural_net_spec) |> 
+  extract_parameter_set_dials()
+
+wflow_param
+```
+
+Each tuning parameter argument has a corresponding function in the `dials` package. In the vast majority of the cases, the function has the same name as the parameter argument:
+
+```{r}
+dials::hidden_units()
+dials::threshold()
+```
+
+The deg_free parameter is a counterexample; the notion of degrees of freedom comes up in a variety of different contexts. When used with splines, there is a specialized dials function called spline_degree() that is, by default, invoked for splines:
+
+```{r}
+dials::spline_degree()
+```
+
+The dials package also has a convenience function for extracting a particular parameter object, and, Inside the parameter set, the range of the parameters can also be updated in place:
+
+```{r}
+wflow_param |> extract_parameter_dials("threshold")
+extract_parameter_set_dials(ames_rec) |> 
+  update(threshold=threshold(c(0.8,1.0)))
+```
+
+The **p*arameter** sets created by `extract_parameter_set_dials()` are consumed by the tidymodels tuning functions (when needed). If the defaults for the tuning parameter objects require modification, a modified parameter set is passed to the appropriate tuning function.
+
+> Some tuning parameters depend on the dimensions of the data. For example, the number of nearest neighbors must be between one and the number of rows in the data.
+
+
 
 
 # Reference
