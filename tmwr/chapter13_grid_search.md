@@ -8,6 +8,10 @@
     -   [FINALIZING THE MODEL](#finalizing-the-model)
     -   [TOOLS FOR CREATING TUNING
         SPECIFICATIONS](#tools-for-creating-tuning-specifications)
+    -   [TOOLS FOR EFFICIENT GRID
+        SEARCH](#tools-for-efficient-grid-search)
+        -   [SUBMODEL OPTIMIZATION](#submodel-optimization)
+        -   [RACING METHODS](#racing-methods)
 -   [Reference](#reference)
 
 # GRID SEARCH
@@ -48,7 +52,7 @@ neural network). The parameters marked for tuning are:
     ## ✖ dplyr::filter()  masks stats::filter()
     ## ✖ dplyr::lag()     masks stats::lag()
     ## ✖ recipes::step()  masks stats::step()
-    ## • Learn how to get started at https://www.tidymodels.org/start/
+    ## • Use suppressPackageStartupMessages() to eliminate package startup messages
 
     mlp_spec <- 
       mlp(hidden_units = tune(), penalty = tune(), epochs = tune()) |> 
@@ -1536,6 +1540,116 @@ out R code for tuning the model.
 
 > The `usemodels` package can also be used to create model fitting code
 > with no tuning by setting the argument `tune = FALSE`.
+
+## TOOLS FOR EFFICIENT GRID SEARCH
+
+It is possible to make grid search more computationally efficient by
+applying a few different tricks and optimizations
+
+### SUBMODEL OPTIMIZATION
+
+The tune package automatically applies this type of optimization
+whenever an applicable model is tuned.
+
+    c5_spec <- 
+      boost_tree(trees = tune()) |> 
+      set_engine("C5.0") |> 
+      set_mode("classification")
+
+    set.seed(1307)
+    c5_spec |> 
+      tune_grid(
+        class ~ .,
+        resamples = cell_folds, 
+        grid - data.frame(trees=1:100),
+        metrics = roc_res
+      )
+
+    ## Warning: The `...` are not used in this function but one or more objects were
+    ## passed: ''
+
+    ## # Tuning results
+    ## # 10-fold cross-validation 
+    ## # A tibble: 10 × 4
+    ##    splits             id     .metrics          .notes          
+    ##    <list>             <chr>  <list>            <list>          
+    ##  1 <split [1817/202]> Fold01 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  2 <split [1817/202]> Fold02 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  3 <split [1817/202]> Fold03 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  4 <split [1817/202]> Fold04 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  5 <split [1817/202]> Fold05 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  6 <split [1817/202]> Fold06 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  7 <split [1817/202]> Fold07 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  8 <split [1817/202]> Fold08 <tibble [10 × 5]> <tibble [0 × 3]>
+    ##  9 <split [1817/202]> Fold09 <tibble [10 × 5]> <tibble [0 × 3]>
+    ## 10 <split [1818/201]> Fold10 <tibble [10 × 5]> <tibble [0 × 3]>
+
+Without the submodel optimization, the call to `tune_grid()` used *62.2
+minutes* to resample 100 submodels. With the optimization, the same call
+took *100 seconds* (a 37-fold speed-up). The reduced time is the
+difference in `tune_grid()` fitting 1000 models versus 10 models.
+
+### RACING METHODS
+
+The *finetune* package contains functions for racing. The
+`tune_race_anova()` function conducts an *ANOVA* model to test for
+statistical significance of the different model configurations. The
+syntax to reproduce the filtering shown previously is:
+
+    library(finetune) 
+
+    set.seed(1308) 
+    mlp_sfd_race <- 
+      mlp_wflow |> 
+      tune_race_anova(
+        cell_folds, 
+        grid = 20,
+        param_info = mlp_param,
+        metrics = roc_res, 
+        control = control_race(verbose_elim = T)
+      )
+
+    ## ℹ Racing will maximize the roc_auc metric.
+    ## ℹ Resamples are analyzed in a random order.
+    ## ℹ Fold10: 11 eliminated; 9 candidates remain.
+    ## 
+    ## ℹ Fold06: 1 eliminated; 8 candidates remain.
+    ## 
+    ## ℹ Fold08: 0 eliminated; 8 candidates remain.
+    ## 
+    ## ℹ Fold09: 1 eliminated; 7 candidates remain.
+    ## 
+    ## ℹ Fold05: 0 eliminated; 7 candidates remain.
+    ## 
+    ## ℹ Fold01: 0 eliminated; 7 candidates remain.
+    ## 
+    ## ℹ Fold07: 0 eliminated; 7 candidates remain.
+
+    show_best(mlp_sfd_race,n=10)
+
+    ## # A tibble: 7 × 10
+    ##   hidden_units  penalty epochs num_comp .metric .estimator  mean     n std_err
+    ##          <int>    <dbl>  <int>    <int> <chr>   <chr>      <dbl> <int>   <dbl>
+    ## 1            8 8.14e- 1    171       15 roc_auc binary     0.887    10 0.0103 
+    ## 2            3 4.02e- 2    140       10 roc_auc binary     0.885    10 0.00810
+    ## 3            5 1.30e-10     64        5 roc_auc binary     0.879    10 0.00857
+    ## 4            3 1.23e- 1     21       36 roc_auc binary     0.876    10 0.00913
+    ## 5            2 7.91e- 4    155        7 roc_auc binary     0.874    10 0.00868
+    ## 6            4 1.26e- 3     92        9 roc_auc binary     0.874    10 0.00974
+    ## 7            7 6.53e- 8     39       18 roc_auc binary     0.872    10 0.00973
+    ## # ℹ 1 more variable: .config <chr>
+
+    show_best(mlp_sfd_tune)
+
+    ## # A tibble: 5 × 10
+    ##   hidden_units    penalty epochs num_comp .metric .estimator  mean     n std_err
+    ##          <int>      <dbl>  <int>    <int> <chr>   <chr>      <dbl> <int>   <dbl>
+    ## 1            8    5.94e-1     73       22 roc_auc binary     0.883    10 0.0102 
+    ## 2            8    1.03e-8     44        9 roc_auc binary     0.878    10 0.00783
+    ## 3            3    6.49e-9    120        8 roc_auc binary     0.878    10 0.00950
+    ## 4            9    1.41e-1    172       11 roc_auc binary     0.873    10 0.0104 
+    ## 5            4    1.58e-3     36       26 roc_auc binary     0.872    10 0.0107 
+    ## # ℹ 1 more variable: .config <chr>
 
 # Reference
 

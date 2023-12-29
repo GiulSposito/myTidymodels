@@ -328,6 +328,58 @@ use_xgboost( Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type +
 
 > The `usemodels` package can also be used to create model fitting code with no tuning by setting the argument `tune = FALSE`.
 
+## TOOLS FOR EFFICIENT GRID SEARCH
+
+It is possible to make grid search more computationally efficient by applying a few different tricks and optimizations
+
+### SUBMODEL OPTIMIZATION
+
+The tune package automatically applies this type of optimization whenever an applicable model is tuned.
+
+```{r}
+c5_spec <- 
+  boost_tree(trees = tune()) |> 
+  set_engine("C5.0") |> 
+  set_mode("classification")
+
+set.seed(1307)
+c5_spec |> 
+  tune_grid(
+    class ~ .,
+    resamples = cell_folds, 
+    grid - data.frame(trees=1:100),
+    metrics = roc_res
+  )
+```
+
+Without the submodel optimization, the call to `tune_grid()` used *62.2 minutes* to resample 100 submodels. With the optimization, the same call took *100 seconds* (a 37-fold speed-up). The reduced time is the difference in `tune_grid()` fitting 1000 models versus 10 models.
+
+### RACING METHODS
+
+The *finetune* package contains functions for racing. The `tune_race_anova()` function conducts an *ANOVA* model to test for statistical significance of the different model configurations. The syntax to reproduce the filtering shown previously is:
+
+```{r}
+library(finetune) 
+
+set.seed(1308) 
+mlp_sfd_race <- 
+  mlp_wflow |> 
+  tune_race_anova(
+    cell_folds, 
+    grid = 20,
+    param_info = mlp_param,
+    metrics = roc_res, 
+    control = control_race(verbose_elim = T)
+  )
+```
+
+
+```{r}
+show_best(mlp_sfd_race,n=10)
+show_best(mlp_sfd_tune)
+```
+
+
 # Reference
 
 All code and text came from Max Kuhn and Julia Silge`s book [Tidy Modeling with R](https://www.tmwr.org/grid-search).

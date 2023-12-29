@@ -24,3 +24,4 @@ My personnel repo for learning to use the R Tidymodels package, having test scri
 - [Resampling](./tmwr/chapter10_resamplingForPerformance.md)
 - [Model Performance](./tmwr/chapter11_comparingModels.md)
 - [Model Tunning and Overfit](./tmwr/chapter12_tuning.md)
+- [Grid Search](./tmwr/chapter13_grid_search.md)
