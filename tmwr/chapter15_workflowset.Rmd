@@ -1,0 +1,390 @@
+---
+title: "Screening Many Models"
+output: 
+  md_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+# Screening Many Models
+
+For projects with new data sets that have not yet been well understood, a data practitioner may need to screen many combinations of models and preprocessors. It is common to have little or no a priori knowledge about which method will work best with a novel data set.
+
+> A good strategy is to spend some initial effort trying a variety of modeling approaches, determine what works best, then invest additional time tweaking/optimizing a small set of models.
+
+## MODELING CONCRETE MIXTURE STRENGTH
+
+To demonstrate how to screen multiple model workflows, we will use the concrete mixture data from Applied Predictive Modeling.
+
+How can workflow sets make such a process of large scale testing for models easier?
+
+```{r}
+# put rnotbook in the same workdir
+knitr::opts_knit$set(root.dir = normalizePath(rprojroot::find_rstudio_root_file())) 
+
+library(tidymodels)
+data(concrete, package="modeldata")
+glimpse(concrete)
+skimr::skim(concrete)
+```
+
+The `compressive_strength` column is the outcome. The `age` predictor tells us the age of the concrete sample at testing in days (concrete strengthens over time) and the rest of the predictors like `cement` and `water` are concrete components in units of kilograms per cubic meter.
+
+> For some cases in this data set, the same concrete formula was tested multiple times. We’d rather not include these replicate mixtures as individual data points since they might be distributed across both the training and test set. Doing so might artificially inflate our performance estimates.
+
+```{r}
+concrete <- 
+  concrete |> 
+  group_by(across(-compressive_strength)) |> 
+  summarize(compressive_strength = mean(compressive_strength), 
+            .groups = "drop")
+
+nrow(concrete)
+```
+
+Let’s split the data using the default 3:1 ratio of training-to-test and resample the training set using five repeats of 10-fold cross-validation:
+
+```{r}
+set.seed(1501)
+concrete_split <- initial_split(concrete, strata = compressive_strength)
+concrete_train <- training(concrete_split)
+concrete_test  <- testing(concrete_split)
+
+set.seed(1502)
+concrete_folds <- vfold_cv(concrete_train, strata = compressive_strength, repeats = 5)
+```
+
+Some models (notably neural networks, KNN, and support vector machines) require predictors that have been centered and scaled, so some model workflows will require recipes with these preprocessing steps. For other models, a traditional response surface design model expansion (i.e., quadratic and two-way interactions) is a good idea. For these purposes, we create two recipes:
+
+```{r}
+normalized_rec <- recipe(compressive_strength ~ ., data=concrete_train) |> 
+  step_normalize(all_predictors())
+
+poly_rec <- 
+  normalized_rec |> 
+  step_poly(all_predictors()) 
+  step_interact(~all_predictors():all_predictors())
+
+normalized_rec
+poly_rec
+```
+
+For the models, we use the the parsnip addin to create a set of model specifications:
+
+```{r}
+library(rules)
+library(baguette)
+
+linear_reg_spec <- 
+  linear_reg(penalty=tune(), mixture=tune()) |> 
+  set_engine("glmnet")
+
+nnet_spec <- 
+  mlp(hidden_units = tune(), penalty = tune(), epochs = tune()) |> 
+  set_engine("nnet", MaxNWts=2600) |> 
+  set_mode("regression")
+
+mars_spec <- 
+  mars(prod_degree = tune()) |> 
+  set_engine("earth") |> 
+  set_mode("regression")
+
+svm_r_spec <- 
+  svm_rbf(cost=tune(), rbf_sigma = tune()) |> 
+  set_engine("kernlab") |> 
+  set_mode("regression")
+
+svm_p_spec <- 
+  svm_poly(cost=tune(), degree = tune()) |> 
+  set_engine("kernlab") |> 
+  set_mode("regression")
+
+knn_spec <- 
+  nearest_neighbor(neighbors = tune(), dist_power = tune(), weight_func=tune()) |> 
+  set_engine("kknn") |> 
+  set_mode("regression")
+
+cart_spec <- 
+  decision_tree(cost_complexity = tune(), min_n = tune()) |> 
+  set_engine("rpart") |> 
+  set_mode("regression")
+
+bag_cart_spec <- bag_tree() |> 
+  set_engine("rpart", times=50L) |> 
+  set_mode("regression")
+
+rf_spec <- 
+  rand_forest(mtry = tune(), min_n=tune(), trees = 1000) |> 
+  set_engine("ranger") |> 
+  set_mode("regression")
+
+xgb_spec <- boost_tree(tree_depth = tune(), learn_rate = tune(), loss_reduction = tune(),
+                      min_n = tune(), sample_size = tune(), trees=tune()) |> 
+  set_engine("xgboost") |> 
+  set_mode("regression")
+
+cubist_spec <- 
+  cubist_rules(committees = tune(), neighbors = tune()) |> 
+  set_engine("Cubist")
+
+# The analysis in M. Kuhn and Johnson (2013) specifies that the neural network should have up to 27 hidden units in the layer
+
+nnet_param <- 
+  nnet_spec |> 
+  extract_parameter_set_dials() |> 
+  update(hidden_units=hidden_units(c(1,27)))
+
+```
+
+### CREATING THE WORKFLOW SET
+
+Workflos sets take a named list of preprocessors and model specification and combine them into an object containing multiple wokflows. There are thre possible kinds of preprocessors:
+
++ A standard R formula
++ A recipe object (prior to estimation/prepping) 
++ A dplyr-style selector to choose the outcome and predictors
+
+s a first workflow set example, let’s combine the recipe that only standardizes the predictors to the nonlinear models that require the predictors to be in the same units:
+
+```{r}
+normalized <- 
+  workflow_set(
+    preproc = list(normalized=normalized_rec), 
+    models  = list(SVM_radial = svm_r_spec,
+                   SMV_poly   = svm_p_spec,
+                   KNN        = knn_spec,
+                   neural_network = nnet_spec)
+  )
+
+normalized
+```
+
+Since there is only a single preprocessor, this function creates a set of workflows with this value. If the preprocessor contained more than one entry, the function would create all combinations of preprocessors and models
+
+The `wflow_id` column is automatically created but can be modified using a call to `mutate()`. The `info` column contains a tibble with some identifiers and the workflow object. The workflow can be extracted:
+
+```{r}
+# extract method
+normalized |> 
+  extract_workflow(id="normalized_KNN")
+
+# similar tibble/list manipulation
+normalized |> 
+  filter(wflow_id=="normalized_KNN") |> 
+  pull(info) |> 
+  pluck(1, "workflow", 1)
+```
+
+The `option` column is a placeholder for any arguments to use when we evaluate the workflow. For example, to add the neural network parameter object:
+
+```{r}
+normalized <- 
+  normalized |> 
+  option_add(param_info=nnet_param, id="normalized_neural_network")
+
+normalized
+```
+
+When a function from the *tune* or *finetune* package is used to tune (or resample) the workflow, this argument will be used.
+
+The `result` column is a placeholder for the output of the tuning or resampling functions.
+
+For the other nonlinear models, let’s create another workflow set that uses dplyr selectors for the outcome and predictors:
+
+```{r}
+model_vars <- 
+  workflow_variables(outcomes = compressive_strength,
+                     predictors = everything())
+
+no_pre_proc <- 
+  workflow_set(
+    preproc = list(simple=model_vars),
+    models  = list(
+      MARS = mars_spec,
+      CART = cart_spec, 
+      CART_bagged = bag_cart_spec,
+      RF = rf_spec, 
+      boosting = xgb_spec, 
+      Cubist = cubist_spec
+    )
+  )
+
+no_pre_proc
+```
+
+Finally, we assemble the set that uses nonlinear terms and interactions with the appropriate models:
+
+```{r}
+with_features <- workflow_set(
+  preproc = list(full_quad = poly_rec),
+  models  = list(linear_reg = linear_reg_spec, KNN=knn_spec)
+)
+
+with_features
+```
+
+These objects are `tibbles` with the extra class of workflow_set. Row binding does not affect the state of the sets and the result is itself a workflow set:
+
+```{r}
+all_workflows <- bind_rows(no_pre_proc, normalized, with_features)
+
+all_workflows
+
+```
+
+### TUNING AND EVALUATING THE MODELS
+
+Almost all of the members of `all_workflows` contain tuning parameters. To evaluate their performance, we can use the standard tuning or resampling functions (e.g., `tune_grid()` and so on). The `workflow_map()` function will apply the same function to all of the workflows in the set; the default is `tune_grid()`.
+
+```{r cache=TRUE, cache.path="cache/"}
+
+grid_ctrl <- control_grid(
+  save_pred=T,
+  parallel_over="everything",
+  save_workflow = T
+)
+
+library(doMC)
+registerDoMC(cores=parallel::detectCores()-1)
+
+grid_results <- 
+  all_workflows |> 
+  # fn default for map is "tune_grid"
+  workflow_map(
+    seed=1503, # seed to be passed to tune_grid
+    resamples = concrete_folds,
+    grid=25, #  An integer denotes the number of candidate parameter sets to be created automatically.
+    control = grid_ctrl
+  )
+
+# caching the output results
+saveRDS(grid_results, "./tmwr/chp15_grid_results.rds")
+
+```
+
+```{r}
+grid_results <- readRDS("./tmwr/chp15_grid_results.rds")
+grid_results
+```
+
+The `option` column now contains all of the options that we used in the `workflow_map() `call. This makes our results reproducible. In the result columns, the “`tune[+]`” and “`rsmp[+]`” notations mean that the object had no issues. A value such as “`tune[x]`” occurs if all of the models failed for some reason.
+
+There are a few convenience functions for examining results such as grid_results. The `rank_results()` function will order the models by some performance metric. By default, it uses the first metric in the metric set (RMSE in this instance). Let’s `filter()` to look only at RMSE:
+
+```{r}
+grid_results |> 
+  rank_results() |> 
+  filter(.metric=="rmse") |> 
+  select(model, .config, rmse=mean, rank)
+```
+
+```{r}
+autoplot(
+  grid_results,
+  rank_metric = "rmse", 
+  metric="rmse",
+  select_best = T
+) +
+  geom_text(aes(y=mean+0.4, label=wflow_id), angle=90, hjust=0) +
+  lims(y=c(NA,11)) +
+  theme_light() +
+  theme(legend.position = "none")
+```
+
+```{r}
+autoplot(grid_results, id="simple_Cubist", metric="rmse")
+```
+
+The example model screening with our concrete mixture data fits a total of 12,600 models. Using 2 workers in parallel, the estimation process took 1.9 hours to complete.
+
+## EFFICIENTLY SCREENING MODELS
+
+One effective method for screening a large set of models efficiently is to use the racing approach
+
+```{r cache=TRUE, cache.path="cache/"}
+library(finetune)
+
+race_ctrl <-
+  control_race(
+    save_pred = T,
+    parallel_over = "everything",
+    save_workflow = T
+  )
+
+library(doMC)
+registerDoMC(cores=parallel::detectCores()-1)
+
+race_results <- 
+  all_workflows |> 
+  workflow_map(
+    "tune_race_anova",
+    seed=1503,
+    resamples = concrete_folds,
+    grid=25,
+    control=race_ctrl
+  )
+
+saveRDS(race_results, "./tmwr/chp15_race_results.rds")
+
+```
+
+```{r}
+grid_results <- readRDS("./tmwr/chp15_race_results.rds")
+race_results
+```
+
+The same helpful functions are available for this object to interrogate the results and, in fact, the basic `autoplot()` method shown before produces trends similar:
+
+```{r}
+autoplot(
+  race_results,
+  rank_metric = "rmse", 
+  metric="rmse",
+  select_best = T
+) +
+  geom_text(aes(y=mean+0.4, label=wflow_id), angle=90, hjust=0) +
+  lims(y=c(NA,11)) +
+  theme_light() +
+  theme(legend.position = "none")
+```
+
+Overall, the racing approach estimated a total of 1,050 models, 8.33% of the full set of 12,600 models in the full grid. As a result, the racing approach was 4.8-fold faster.
+
+```{r}
+
+```
+
+
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge`s book [Tidy Modeling with R](https://www.tmwr.org/workflow-sets).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
