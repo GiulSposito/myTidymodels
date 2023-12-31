@@ -237,7 +237,7 @@ all_workflows
 
 Almost all of the members of `all_workflows` contain tuning parameters. To evaluate their performance, we can use the standard tuning or resampling functions (e.g., `tune_grid()` and so on). The `workflow_map()` function will apply the same function to all of the workflows in the set; the default is `tune_grid()`.
 
-```{r cache=TRUE, cache.path="cache/"}
+```{r eval=FALSE, cache=TRUE, cache.path="cache/"}
 
 grid_ctrl <- control_grid(
   save_pred=T,
@@ -302,7 +302,7 @@ The example model screening with our concrete mixture data fits a total of 12,60
 
 One effective method for screening a large set of models efficiently is to use the racing approach
 
-```{r cache=TRUE, cache.path="cache/"}
+```{r eval=FALSE, cache=TRUE, cache.path="cache/"}
 library(finetune)
 
 race_ctrl <-
@@ -330,7 +330,7 @@ saveRDS(race_results, "./tmwr/chp15_race_results.rds")
 ```
 
 ```{r}
-grid_results <- readRDS("./tmwr/chp15_race_results.rds")
+race_results <- readRDS("./tmwr/chp15_race_results.rds")
 race_results
 ```
 
@@ -342,7 +342,7 @@ autoplot(
   rank_metric = "rmse", 
   metric="rmse",
   select_best = T
-) +
+)  +
   geom_text(aes(y=mean+0.4, label=wflow_id), angle=90, hjust=0) +
   lims(y=c(NA,11)) +
   theme_light() +
@@ -352,9 +352,61 @@ autoplot(
 Overall, the racing approach estimated a total of 1,050 models, 8.33% of the full set of 12,600 models in the full grid. As a result, the racing approach was 4.8-fold faster.
 
 ```{r}
+matched_results <- rank_results(race_results, select_best = T) |> 
+  select(wflow_id, .metric, race=mean, config_race=.config) |> 
+  inner_join(
+    rank_results(grid_results, select_best = T) |> 
+      select(wflow_id, .metric, complete=mean, 
+             config_complete=.config, model),
+    by=c("wflow_id",".metric")
+  ) |> 
+  filter(.metric=="rmse")
 
+library(ggrepel)
+
+matched_results |> 
+  ggplot(aes(x=complete, y=race, color=model)) +
+  geom_abline(lty=3) +
+  geom_point() +
+  geom_text_repel(aes(label=model)) +
+  coord_obs_pred() +
+  theme_light() +
+  theme(legend.position = "none")
 ```
 
+While the racing approach selected the same candidate parameters as the complete grid for only 41.67% of the models, the performance metrics of the models selected by racing were nearly equal. 
+
+## FINALIZING A MODEL
+
+```{r}
+best_results <- 
+  race_results |> 
+  extract_workflow_set_result("simple_boosting") |> 
+  select_best(metric="rmse")
+
+best_results
+
+boost_test_results <- 
+  race_results |> 
+  extract_workflow("simple_boosting") |> 
+  finalize_workflow(best_results) |> 
+  last_fit(split=concrete_split)
+
+boost_test_results
+collect_metrics(boost_test_results)
+```
+
+
+```{r}
+boost_test_results |> 
+  collect_predictions() |> 
+  ggplot(aes(x=compressive_strength, y=.pred)) +
+  geom_abline(color="gray50", lty=2) +
+  geom_point(alpha=.5) +
+  coord_obs_pred() +
+  labs(x="observed", y="predicted")
+
+```
 
 
 # Reference
