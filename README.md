@@ -28,3 +28,4 @@ My personnel repo for learning to use the R Tidymodels package, having test scri
 - [Iteractive Search](./tmwr/chapter14_iteractive_search.md)
 - [Screening Models](./tmwr/chapter15_workflowset.md)
 - [Dimensionality Reduction](./tmwr/chapter16_dim_reduction.md)
+- [Encoding Categorical Data](./tmwr/chapter17_encoding_categorical.md)
