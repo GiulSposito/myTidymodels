@@ -1,0 +1,504 @@
+---
+title: "Explaining Models and Predictions"
+output: 
+  md_document:
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+## Setup
+
+Fitting two models (same code from [chapter 10](./chapter10_resamplingForPerformance.md))
+
+```{r}
+# put rnotbook in the same workdir
+knitr::opts_knit$set(root.dir = normalizePath(rprojroot::find_rstudio_root_file())) 
+
+library(tidymodels)
+data(ames)
+ames <- mutate(ames, Sale_Price = log10(Sale_Price))
+
+set.seed(502)
+ames_split <- initial_split(ames, prop = 0.80, strata = Sale_Price)
+ames_train <- training(ames_split)
+ames_test  <-  testing(ames_split)
+
+ames_rec <- 
+  recipe(Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type + 
+           Latitude + Longitude, data = ames_train) %>%
+  step_log(Gr_Liv_Area, base = 10) %>% 
+  step_other(Neighborhood, threshold = 0.01) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_interact( ~ Gr_Liv_Area:starts_with("Bldg_Type_") ) %>% 
+  step_ns(Latitude, Longitude, deg_free = 20)
+  
+lm_model <- linear_reg() %>% set_engine("lm")
+
+lm_wflow <- 
+  workflow() %>% 
+  add_model(lm_model) %>% 
+  add_recipe(ames_rec)
+
+lm_fit <- fit(lm_wflow, ames_train)
+
+rf_model <- 
+  rand_forest(trees=1000) |> 
+  set_engine("ranger") |> 
+  set_mode("regression")
+
+rf_model
+
+rf_wflow <- 
+  workflow() |> 
+  add_formula(
+    Sale_Price ~ Neighborhood + Gr_Liv_Area + Year_Built + Bldg_Type + Latitude + Longitude) |> 
+  add_model(rf_model
+  )
+
+rf_wflow
+
+rf_fit <- rf_wflow |> fit(data=ames_train)
+rf_fit
+```
+
+## Models of Explanations
+
+> There are two types of model explanations, _global_ and _local_. _Global_ model explanations provide an overall understanding aggregated over a whole set of observations; _local_ model explanations provide information about a prediction for a single observation.
+
+## Software for model explanations
+
+Tidymodels framework does not itself contain software for model explanations, supplementary R packagens can do the job:
+
+ + `vip` functions when we want to use _model-based_ methods that take advantage of model strucutre (and are often faster) 
+ + `DALEX` functions when we want to use _model-agnostic_ methods that can be applied to any model.
+
+Let's get the model fitted in chapter 10 to use as cases to explain 
+
+```{r}
+
+lm_pred <- lm_fit |> 
+  predict(ames_test) |> 
+  bind_cols(ames_test |> select(Sale_Price) |> mutate(model="lm+interactions"))
+
+rf_pred <- rf_fit |> 
+  predict(ames_test) |> 
+  bind_cols(ames_test |> select(Sale_Price) |> mutate(model="random forest"))
+
+bind_rows(lm_pred, rf_pred) |> 
+  ggplot(aes(x=Sale_Price, y=.pred, color=model)) +
+  geom_point(alpha=.5) +
+  geom_abline(lty="dashed", color="gray50") +
+  facet_wrap(~model) +
+  coord_obs_pred() +
+  theme_light() +
+  theme(legend.position = "none")
+
+```
+
+ Let's build a _model-agnostic_ explainers for both methods. We'll use `DALEXtra` add-on package for `DALEX`, which provides support for tidymodels. To compute any kind of model explanation, global or local, using DALEX, we first prepare the appropriate data and then create an explainer for each model:
+ 
+```{r}
+library(DALEXtra)
+vip_features <- c("Neighborhood", "Gr_Liv_Area", "Year_Built", "Bldg_Type", "Latitude", "Longitude")
+
+vip_train <- 
+  ames_train |> 
+  select(all_of(vip_features)) 
+
+explainer_lm <-
+  explain_tidymodels(
+    lm_fit, 
+    data=vip_train,
+    y=ames_train$Sale_Price, 
+    label="lm + interactions",
+    verbose=F
+  )
+
+explainer_rf <-
+  explain_tidymodels(
+    rf_fit, 
+    data=vip_train,
+    y=ames_train$Sale_Price, 
+    label="random forest",
+    verbose=F
+  )
+
+```
+
+> A linear model is typically straightforward to interpret and explain; you may not often find yourself using separate model explanation algorithms for a linear model. However, it can sometimes be difficult to understand or explain the predictions of even a linear model once it has splines and interaction terms!
+
+Dealing with significant feature engineering transformations during model explainability highlights some options we have (or sometimes, ambiguity in such analyses). We can quantify global or local model explanations either in terms of:
+
+ + _original_, basic predictors as they existed without significant feature engineering transformations, or
+ + _derived features_, such as those created via dimensionality reduction (Chapter 16) or interactions and spline terms, as in this example.
+
+## Local Explanations
+
+Local model explanations provide information about a prediction for a sinlge observation. Let's consider an old suplex in the North Ames neighborhood:
+
+```{r}
+duplex <- vip_train[120,]
+duplex
+```
+ 
+There are multiple possible approaches to understanding why a model predicts a given price for this duplex.
+ 
+One is a break-down explanation with `DALEX` function `predict_parts()`. It computes how contributions attributed to individual features change the mean model's prediction for a particular observation:
+
+```{r}
+lm_breakdown <- predict_parts(
+  explainer = explainer_lm, 
+  new_observation = duplex
+)
+
+lm_breakdown
+```
+
+Since this linear model was trained using spline terms for `latitude` and `longitude`, the contribution to price for `Longitude` shown here combines the effects of all of its individual spline terms. The contribution is in terms of the original `Longitude` feature, not the derived spline features.
+
+The most important features are slightly different for the random forest model, with the size, age, and duplex status being most important:
+
+```{r}
+rf_breakdown <- predict_parts(
+  explainer = explainer_rf,
+  new_observation = duplex
+)
+
+rf_breakdown
+```
+
+> Model break-down explanations like these depend on the order of the features
+
+If we choose the `order` for the random forest model explanation to be the same as the default for the linear model (chosen via heuristic), we can change the relative importance of the features:
+
+```{r}
+predict_parts(
+  explainer = explainer_rf,
+  new_observation = duplex, 
+  order = lm_breakdown$variable_name
+)
+
+```
+
+We can use the fact that these break-down explanations change based on order to compute the most important features over all (or many) possible orderings. This is the idea behind `Shapley Additive Explanations`, where the average contributions of features are computed under different combinations or “coalitions” of feature orderings. Let’s compute SHAP attributions for our duplex, using `B = 20` random orderings:
+
+```{r}
+set.seed(1801) 
+shap_duplex <- 
+  predict_parts(
+    explainer = explainer_rf,
+    new_observation = duplex, 
+    type="shap",
+    B=20
+  )
+
+shap_duplex
+```
+
+```{r}
+# autoplot
+plot(shap_duplex)
+
+#  manually
+shap_duplex |> as_tibble()
+library(forcats)
+shap_duplex |>
+  group_by(variable) |> 
+  mutate(mean_val = mean(contribution)) |> 
+  ungroup() |> 
+  mutate(variable = fct_reorder(variable, abs(mean_val))) |> 
+  ggplot(aes(contribution, variable, fill=mean_val>0)) +
+  geom_col(data=~distinct(., variable, mean_val),
+           aes(mean_val, variable), 
+           alpha=.5) +
+  geom_boxplot(width=0.5) +
+  scale_fill_viridis_d() +
+  labs(y=NULL) +
+  theme_light() +
+  theme(legend.position = "none")
+
+```
+
+What about a different observation in our data set? Let’s look at a larger, newer one-family home in the Gilbert neighborhood:
+
+```{r}
+big_house <- vip_train[1269,]
+big_house
+```
+
+```{r}
+set.seed(1802) 
+shap_house <- 
+  predict_parts(
+    explainer = explainer_rf,
+    new_observation = big_house, 
+    type="shap",
+    B=20
+  )
+
+shap_house
+```
+
+Unlike the duplex, the size and age of this house contribute to its price being higher.
+
+```{r}
+shap_house |>
+  group_by(variable) |> 
+  mutate(mean_val = mean(contribution)) |> 
+  ungroup() |> 
+  mutate(variable = fct_reorder(variable, abs(mean_val))) |> 
+  ggplot(aes(contribution, variable, fill=mean_val>0)) +
+  geom_col(data=~distinct(., variable, mean_val),
+           aes(mean_val, variable), 
+           alpha=.5) +
+  geom_boxplot(width=0.5) +
+  scale_fill_viridis_d() +
+  labs(y=NULL) +
+  theme_light() +
+  theme(legend.position = "none")
+```
+
+## Global Explanations
+
+Global model explanations, also called global feature importance or variable importance, help us understand which features are most important in driving the predictions of the linear and random forest models overall, aggregated over the whole training set.
+
+> One way to compute variable importance is to permute the features (Breiman 2001a). We can permute or shuffle the values of a feature, predict from the model, and then measure how much worse the model fits the data compared to before shuffling.
+
+If shuffling a column causes a large degradation in model performance, it is important; if shuffling a column’s values doesn’t make much difference to how the model performs, it must not be an important variable. 
+Using `DALEX`, we compute this kind of variable importance via the `model_parts()` function.
+
+```{r}
+set.seed(1803) 
+vip_lm <- model_parts(explainer_lm, loss_function = loss_root_mean_square)
+set.seed(1804)
+vip_rf <- model_parts(explainer_rf, loss_function = loss_root_mean_square)
+```
+
+Again, we could use de default plot method from `DALEX` by calling `plot(vip_lm, vip_rf)`...
+
+```{r}
+plot(vip_lm, vip_rf)
+```
+
+...but underlying data is available for exploration, analysis, and plotting. Let’s create a function for plotting.
+
+```{r}
+ggplot_imp <- function(...) {
+  obj <- list(...)
+  metric_name <- attr(obj[[1]], "loss_name")
+  metric_lab <- paste(metric_name, "after permuations\n(higher indicates more importante)")
+  
+  full_vip <- bind_rows(obj) |> 
+    filter(variable != "_baseline_")
+  
+  perm_vals <- full_vip |> 
+    filter(variable == "_full_model_") |> 
+    group_by(label) |> 
+    summarise(dropouts_loss = mean(dropout_loss))
+  
+  p <- full_vip |> 
+    filter(variable != "_full_model_") |> 
+    mutate(variable = fct_reorder(variable, dropout_loss)) |> 
+    ggplot(aes(dropout_loss, variable))
+  
+  if(length(obj)>1) {
+    p <- p +
+      facet_wrap(vars(label)) +
+      geom_vline(data=perm_vals, aes(xintercept=dropouts_loss, color=label),
+                 linewidth=1.4, lty="dashed", alpha=0.7) +
+      geom_boxplot(aes(color=label, fill=label), alpha=.2)
+  } else {
+    p <- p +
+      geom_vline(data=perm_vals, aes(xintercept=dropouts_loss),
+                 linewidth=1.4, lty="dashed", alpha=0.7) +
+      geom_boxplot(fill="#91CBD765", alpha=.4)
+  }
+  
+  p +
+    theme_light() +
+    theme(legend.position = "none") +
+    labs(
+      x = metric_lab,
+      y = NULL, fill=NULL, color=NULL)
+}
+
+ggplot_imp(vip_lm, vip_rf)
+
+```
+
+## Building Global Explanations from Local explantion
+
+So far in this chapter, we have focused on _local model explanations_ for a single observation (via Shapley additive explanations) and _global model explanations_ for a data set as a whole (via permuting features). It is also possible to build _global model explanations_ by aggregating _local model explanations_, as with *partial dependence profiles*.
+
+> Partial dependence profiles show how the expected value of a model prediction, like the predicted price of a home in Ames, changes as a function of a feature, like the age or gross living area.
+
+One way to build such a profile is by aggregating or averaging profiles for individual observations. We can compute such individual profiles (for 500 of the observations in our training set) and then aggregate them using the `DALEX` function `model_profile()`:
+
+```{r}
+set.seed(1805)
+pdp_age <- model_profile(explainer_rf, N=500, variables = "Year_Built")
+
+pdp_age
+
+plot(pdp_age)
+```
+
+Using this function we can see the nonlinear behavior of the random forest model.
+
+```{r}
+ggplot_pdp <- function(obj, x){
+
+  p <- 
+    as_tibble(obj$agr_profiles) |>
+    mutate(`_label_` = stringr::str_remove(`_label_`, "^[^_]*_")) |>
+    ggplot(aes(`_x_`, `_yhat_`)) +
+    geom_line(
+      data = as_tibble(obj$cp_profiles),
+      aes(x = {{x}}, group = `_ids_`),
+      linewidth = 0.5,
+      alpha = 0.05,
+      color = "gray50"
+    )
+  
+  num_colors <- n_distinct(obj$agr_profiles$`_label_`)
+  
+  if (num_colors > 1) {
+    p <- p + geom_line(aes(color = `_label_`),
+                       linewidth = 1.2,
+                       alpha = 0.8)
+  } else {
+    p <- p + geom_line(
+      color = "midnightblue",
+      linewidth = 1.2,
+      alpha = 0.8
+    )
+  }
+  
+  p
+    
+}
+
+ggplot_pdp(pdp_age, Year_Built) +
+  labs(x = "Year_Built", y="Sale Price (log)",
+       color=NULL) +
+  theme_light()
+
+```
+
+Sale price for houses built in different years is mostly flat, with a modest rise after about 1960. Partial dependence profiles can be computed for any other feature in the model, and also for groups in the data, such as `Bldg_Type`.
+
+```{r}
+set.seed(1806)
+# how Gr_Liv_Area influences Sale_Price per Bldg_Type group
+pdp_liv <- model_profile(explainer_rf, N=1000, variables="Gr_Liv_Area",
+                         groups="Bldg_Type")
+
+# default
+plot(pdp_liv) +
+  scale_x_log10()
+
+# manually plot
+ggplot_pdp(pdp_liv, Gr_Liv_Area) +
+  scale_x_log10() +
+  scale_color_brewer(palette="Dark2") +
+  labs(x="Gross living area",
+       y="Sale Price (log)",
+       color=NULL) +
+  theme_light()
+```
+
+We see that sale price increases the most between about 1000 and 3000 square feet of living area, and that differente home types mostly exhibit similar increasing trends in price with more living space.
+
+```{r}
+as_tibble(pdp_liv$agr_profiles) |> 
+  mutate(Bldg_Type = stringr::str_remove(`_label_`, "random forest_")) |> 
+  ggplot(aes(`_x_`, `_yhat_`, color=Bldg_Type)) +
+  geom_line(data=as_tibble(pdp_liv$cp_profiles),
+            aes(x=Gr_Liv_Area, group=`_ids_`),
+            linewidth=0.5, alpha=0.1, color="gray50") +
+  geom_line(linewidth=1.2, alpha=0.8, show.legend = FALSE) +
+  scale_x_log10() +
+  facet_wrap(~Bldg_Type) +
+  scale_color_brewer(palette="Dark2") +
+  labs(x="Gross living area",
+       y="Sale Price (log)",
+       color=NULL) +
+  theme_light()
+```
+
+There is no one correct approach for building model explanations, and the options outlined in this chapter are not exhaustive. We have highlighted good options for explanations at both the individual and global level, as well as how to bridge from one to the other.
+
+## Back to Beans
+
+We can use the same approach in [the beans models](./chapter16_dim_reduction.md) outlined throughout this chapter to create a model-agnostic explainer on the dim reduction and computy global model explanations via `model_parts()`:
+
+Recovering the best model fitted
+
+```{r}
+# dataset
+library(beans)
+data("beans")
+
+set.seed(1806)
+bean_split <- initial_split(beans, strata = class)
+bean_train <- training(bean_split)
+
+# bestNormalize::step_orderNorm() used in the best recipe
+library(bestNormalize)
+
+# recovering workset flow results
+bean_res <- readRDS("./tmwr/chp16_bean_res.rds") 
+
+bean_res |> 
+  rank_results(select_best = T) |> 
+  slice_head(n=5) |> 
+  select(rank, wflow_id, .metric, mean)
+
+best_model_method <- bean_res |> 
+  rank_results(select_best = T) |> 
+  slice_head(n=1) |> 
+  pull(wflow_id)
+
+best_model_method
+
+best_method_res <- bean_res |> 
+  extract_workflow(best_model_method) |> 
+  finalize_workflow(
+    bean_res |> 
+      extract_workflow_set_result(best_model_method) |> 
+      select_best(metric="roc_auc")
+  ) |> 
+  last_fit(split=bean_split , metrics=metric_set(roc_auc))
+
+best_method_res |>
+  collect_metrics()
+
+pca_mlp_fit <- best_method_res |> 
+  extract_workflow()
+```
+
+Evaluationg feature importance
+
+```{r}
+set.seed(1807)
+vip_beans <- 
+  explain_tidymodels(
+    pca_mlp_fit, 
+    data=bean_train |> select(-class),
+    y=bean_train$class,
+    label="MLP",
+    verbose=F
+  ) |> 
+  model_parts()
+
+vip_beans
+
+ggplot_imp(vip_beans)
+```
+
+> The measures of global feature importance that we see incorporate the effects of all of the PCA components, but in terms of the original variables.
+
+# Reference
+
+All code and text came from Max Kuhn and Julia Silge`s book [Tidy Modeling with R](https://www.tmwr.org/explain).
