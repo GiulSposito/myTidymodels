@@ -3,9 +3,6 @@
     -   [Chicago Dataset](#chicago-dataset)
 -   [Reference](#reference)
 
-    # put rnotbook in the same workdir
-    knitr::opts_knit$set(root.dir = normalizePath(rprojroot::find_rstudio_root_file())) 
-
 This chapter discusses two methods for quantifying the potential quality
 of a prediction:
 
@@ -62,7 +59,7 @@ test set of 50:
     ## ✖ dplyr::lag()      masks stats::lag()
     ## ✖ yardstick::spec() masks readr::spec()
     ## ✖ recipes::step()   masks stats::step()
-    ## • Learn how to get started at https://www.tidymodels.org/start/
+    ## • Use suppressPackageStartupMessages() to eliminate package startup messages
 
     simulate_two_classes <-
       function(n, error=1.0, eqn=quote(-1-2*x-0.2*x^2 + 2*y^2)) {
@@ -151,7 +148,7 @@ the default Gaussian prior distributions for the parameters):
     ## Warning: Removed 42 rows containing missing values (`geom_function()`).
     ## Removed 42 rows containing missing values (`geom_function()`).
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-4-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-3-1.png)
 
 The data points closest to the class boundary are the most uncertain. If
 their values changed slightly, their predicted class might change. One
@@ -251,7 +248,7 @@ Does the equivocal zone help improve accuracy?
       labs(x=NULL, y=NULL) +
       theme_light()
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-8-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-7-1.png)
 
 Accuracy improves by a few percentage points but at the cost of nearly
 10% of predictions being unusable! The value of such a compromise
@@ -327,7 +324,7 @@ standard error of prediction across the space:
       coord_fixed() +
       theme_light()
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-10-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-9-1.png)
 
 ## Determining model applicability
 
@@ -898,7 +895,7 @@ along with 95% prediction intervals.
       geom_line(aes(y=.pred)) + 
       theme_light()
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-14-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-13-1.png)
 
 Given the scale of the ridership numbers, these results look
 particularly good for such a simple model. If this model were deployed,
@@ -960,7 +957,7 @@ You can see this terrible model performance visually.
       geom_line(aes(y=.pred)) + 
       theme_light()
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-17-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-16-1.png)
 
 Confidence and prediction intervals for linear regression expand as the
 data become more and more removed from the center of the training set.
@@ -993,7 +990,7 @@ two of the predictors that correspond to ridership at different stations
       theme(aspect.ratio = 1) +
       labs(title = "Ridership Data",subtitle = "(a) Training Set")
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-18-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-17-1.png)
 
 The first step is to conduct PCA on the training data. The PCA scores
 for the training set are shown as:
@@ -1013,7 +1010,7 @@ for the training set are shown as:
       theme_light() +
       labs(title = "Ridership Data",subtitle = "(b) Traning Set PCA Scores")
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-19-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-18-1.png)
 
 Next, using these results, we measure the distance of each training set
 point to the center of the PCA data.
@@ -1028,7 +1025,7 @@ point to the center of the PCA data.
       theme_light() +
       labs(title = "Ridership Data",subtitle = "(c) Distance to Center")
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-20-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-19-1.png)
 
 We can then use this reference distribution to estimate how far a data
 point is from the mainstream of the training data.
@@ -1046,7 +1043,7 @@ point is from the mainstream of the training data.
 
     ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-21-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-20-1.png)
 
 For a new sample, the PCA scores are computed along with the distance to
 the center of the training set.
@@ -1080,7 +1077,7 @@ of the training set is less extreme than the new samples.
       theme_light() +
       labs(title = "Distances to Training Set Center",subtitle = "Component Analysis")
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-22-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-21-1.png)
 
     chi_2020_dists <- chicago_2020_pca |> 
       mutate(dist = sqrt(PC1^2 + PC2^2))
@@ -1098,7 +1095,7 @@ of the training set is less extreme than the new samples.
 
     ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-23-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-22-1.png)
 
 The 2020 sample is farther from the center than any of the training set
 samples (with a percentile of 100%). This indicates the sample is very
@@ -1131,11 +1128,11 @@ optional argument for which data to plot.
 
     autoplot(pca_stat)
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-25-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-24-1.png)
 
     autoplot(pca_stat, distance) + labs(x="distance")
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-25-2.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-24-2.png)
 
 The x-axis shows the values of the distance and the y-axis displays the
 distribution’s percentiles. To compute the percentiles for new data, the
@@ -1197,7 +1194,7 @@ distribution’s percentiles. To compute the percentiles for new data, the
       geom_density(aes(fill=data), color="white", alpha=.5) +
       theme_light()
 
-![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-27-1.png)
+![](chapter19_trust_files/figure-markdown_strict/unnamed-chunk-26-1.png)
 
 The 2020 distance values indicate that these predictor values are
 outside of the vast majority of data seen by the model at training time.

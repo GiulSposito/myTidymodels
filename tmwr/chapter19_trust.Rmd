@@ -7,11 +7,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-```{r}
-# put rnotbook in the same workdir
-knitr::opts_knit$set(root.dir = normalizePath(rprojroot::find_rstudio_root_file())) 
-```
-
 This chapter discusses two methods for quantifying the potential quality of a prediction:
 
 + **Equivocal zones** use the predicted values to alert the user that results may be suspect.
