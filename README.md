@@ -31,4 +31,4 @@ My personnel repo for learning to use the R Tidymodels package, having test scri
 - [Encoding Categorical Data](./tmwr/chapter17_encoding_categorical.md)
 - [Explaining Models and Predictions](./tmwr/chapter18_explain.md)
 - [When Should You Trust Your Predictions?](./tmwr/chapter19_trust.md)
-- [Ensembles of Models](./tmwr/chapter20_ensemble.md)
+- [Ensembles of Models](./tmwr/chapter20_ensembles.md)
