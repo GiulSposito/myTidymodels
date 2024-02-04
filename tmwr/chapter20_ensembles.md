@@ -170,7 +170,7 @@ best value.
 
     autoplot(ens)
 
-![](chapter20_ensambles_files/figure-markdown_strict/unnamed-chunk-4-1.png)
+![](chapter20_ensembles_files/figure-markdown_strict/unnamed-chunk-4-1.png)
 
 The top panel shows the average number of candidate ensemble members
 retained by the meta-learning model. We can see that the number of
@@ -187,7 +187,7 @@ option:
 
     autoplot(ens)
 
-![](chapter20_ensambles_files/figure-markdown_strict/unnamed-chunk-5-1.png)
+![](chapter20_ensembles_files/figure-markdown_strict/unnamed-chunk-5-1.png)
 
 The penalty value associated with the smallest RMSE was 0.051. Printing
 the object shows the details of the meta-learning model:
@@ -234,7 +234,7 @@ produce.
       theme(legend.position = "none") +
       lims(x=c(-0.01, 0.45))
 
-![](chapter20_ensambles_files/figure-markdown_strict/unnamed-chunk-7-1.png)
+![](chapter20_ensembles_files/figure-markdown_strict/unnamed-chunk-7-1.png)
 
 ## Fit the member models
 
